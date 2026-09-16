@@ -63,7 +63,12 @@ function setState(state) {
   document.body.dataset.state = state;
   const btn = $('#scanBtn');
   if (btn) btn.disabled = state === 'scanning';
-  window.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' });
+  const heroBtn = $('#heroScanBtn');
+  if (heroBtn) heroBtn.disabled = state === 'scanning';
+  if (state === 'scanning' || state === 'result' || state === 'error') {
+    const el = $('#scanner') || $('#scanForm');
+    if (el) el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+  }
 }
 
 function appendLog(key, val) {
@@ -791,6 +796,9 @@ function renderResult(data) {
   // Evidence
   buildEvidence(address, token?.symbol, m);
 
+  // Update Hero Specimen Card if on the page
+  renderSpecimen(data);
+
   bindCopyButtons();
   bindFilterButtons();
 }
@@ -1134,3 +1142,186 @@ function bindFilterButtons() {
   });
 }
 bindCopyButtons();
+
+/* ─── Hero Specimen & Unified 1-Page Handlers ────────────────────────────── */
+function renderSpecimen(data) {
+  if (!data) return;
+  const { address, token, score, modules } = data;
+  const c = modules?.contract;
+  const e = modules?.explorer;
+  const m = modules?.market;
+  const f = modules?.funding;
+  const s = modules?.sentiment;
+  const sym = token?.symbol || 'TOKEN';
+
+  const specHeadStatus = $('#specHeadStatus');
+  if (specHeadStatus) specHeadStatus.textContent = 'Live report';
+
+  const specHeadSub = $('#specHeadSub');
+  if (specHeadSub && data.coverage) specHeadSub.textContent = `Coverage ${data.coverage.ok}/${data.coverage.total} on Robinhood Chain`;
+
+  const specSymbol = $('#specSymbol');
+  if (specSymbol) specSymbol.textContent = '$' + sym;
+
+  const specAddr = $('#specAddr');
+  if (specAddr) specAddr.textContent = `${short(address)} on Robinhood Chain`;
+
+  const specVerdict = $('#specVerdict');
+  if (specVerdict && score) {
+    specVerdict.textContent = score.verdict || 'Low risk';
+    specVerdict.className = `verdict ${score.value >= 60 ? 'high' : score.value >= 30 ? 'medium' : 'low'}`;
+  }
+
+  const specScore = $('#specScore');
+  if (specScore && score) specScore.textContent = score.value;
+
+  const specBar = $('#specBar');
+  if (specBar && score) specBar.style.width = score.value + '%';
+
+  const onchainList = $('#specOnchain');
+  if (onchainList) {
+    const items = [];
+    if (c?.has?.mint && !c?.ownerRenounced && c?.hasOwnerFn) {
+      items.push({ sev: 'h', text: 'Owner can still mint new supply' });
+    } else {
+      items.push({ sev: 'l', text: 'Total supply is fixed (no active mint)' });
+    }
+
+    if (f?.funding_parent_share >= 0.5) {
+      items.push({ sev: 'h', text: `${pct(f.funding_parent_share)} of early buyers share one funder` });
+    } else if (f?.deployer_funded >= 0.1) {
+      items.push({ sev: 'h', text: `${pct(f.deployer_funded)} of buyers were funded by deployer` });
+    } else {
+      items.push({ sev: 'l', text: 'Organic buyer funding patterns' });
+    }
+
+    let topShare = null;
+    const supply = c?.totalSupply ? BigInt(c.totalSupply) : (e?.token?.total_supply ? BigInt(e.token.total_supply) : null);
+    if (supply && supply > 0n && e?.holders?.length) {
+      const pairSet = m?.pairAddresses || new Set();
+      const nonPool = e.holders.filter(h => !DEAD.has(lc(h.address?.hash)) && !pairSet.has(lc(h.address?.hash)));
+      if (nonPool.length > 0) {
+        topShare = Math.min(100, Math.max(0, Number(BigInt(nonPool[0].value || 0) * 10000n / supply) / 100));
+      }
+    }
+    if (topShare != null && !isNaN(topShare)) {
+      items.push({ sev: topShare > 20 ? 'm' : 'l', text: `Largest wallet holds ${topShare.toFixed(1)}%` });
+    }
+
+    if (m?.liquidityUsd) {
+      items.push({ sev: m.liquidityUsd < 10000 ? 'm' : 'l', text: `Liquidity ${fmtUsd(m.liquidityUsd)} across ${m.pairs.length} pool${m.pairs.length !== 1 ? 's' : ''}` });
+    }
+
+    onchainList.innerHTML = items.map(item => `<li><span class="sev ${item.sev}"></span>${esc(item.text)}</li>`).join('');
+  }
+
+  const offchainList = $('#specOffchain');
+  if (offchainList) {
+    const xItems = [];
+    if (s?.scamMentions && s.scamMentions > 0) {
+      xItems.push({ sev: 'h', text: `${s.scamMentions} posts mention scam or rug` });
+    } else {
+      xItems.push({ sev: 'l', text: 'No scam or honeypot reports found' });
+    }
+
+    if (s?.dupRatio && s.dupRatio > 0.3) {
+      xItems.push({ sev: 'm', text: `${pct(s.dupRatio)} of posts are copy-paste` });
+    } else {
+      xItems.push({ sev: 'l', text: 'Low duplicate post ratio (organic discussion)' });
+    }
+
+    if (s?.posts > 0) {
+      xItems.push({ sev: 'l', text: `Tone is ${s.label} (${s.posts} posts), hype never lowers score` });
+    } else {
+      xItems.push({ sev: 'l', text: 'Community sentiment analyzed on 𝕏' });
+    }
+
+    offchainList.innerHTML = xItems.map(item => `<li><span class="sev ${item.sev}"></span>${esc(item.text)}</li>`).join('');
+  }
+
+  const specFoot = $('#specFoot');
+  if (specFoot) {
+    specFoot.innerHTML = `Report generated from live RPC, Blockscout, DexScreener &amp; 𝕏 data. <a href="/scan?ca=${esc(address)}" style="text-decoration:underline;font-weight:700">Open full report in Scanner ↗</a>`;
+  }
+}
+
+// Hero Search form wiring (Independent on Homepage, does NOT touch the Scanner console)
+const heroInput = $('#heroInput');
+const heroBtn = $('#heroScanBtn');
+const heroForm = $('#heroScanForm');
+let heroScanning = false;
+
+async function handleHeroScan() {
+  if (heroScanning || !heroInput) return;
+  const val = heroInput.value.trim();
+  if (!val) { heroInput.focus(); return; }
+  if (!/^0x[a-fA-F0-9]{40}$/.test(val)) {
+    alert("Please enter a valid Robinhood Chain contract address (0x followed by 40 hex characters).");
+    heroInput.focus();
+    return;
+  }
+  heroScanning = true;
+  if (heroBtn) { heroBtn.disabled = true; heroBtn.textContent = 'Scanning…'; }
+  try {
+    const report = await runScan(val.toLowerCase());
+    renderSpecimen(report);
+  } catch (e) {
+    console.error('Hero scan failed:', e);
+  } finally {
+    if (heroBtn) { heroBtn.disabled = false; heroBtn.textContent = 'Scan token'; }
+    heroScanning = false;
+  }
+}
+
+if (heroBtn && heroInput) {
+  heroBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    handleHeroScan();
+  });
+  heroInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleHeroScan();
+    }
+  });
+}
+if (heroForm) {
+  heroForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    handleHeroScan();
+  });
+}
+
+// Mobile nav burger
+const burger = $('#burger');
+const mobileNav = $('#mobileNav');
+if (burger && mobileNav) {
+  burger.addEventListener('click', () => {
+    const open = mobileNav.classList.toggle('open');
+    burger.setAttribute('aria-expanded', String(open));
+  });
+  mobileNav.querySelectorAll('a').forEach(a => a.addEventListener('click', () => {
+    mobileNav.classList.remove('open');
+    burger.setAttribute('aria-expanded', 'false');
+  }));
+}
+
+// Preload specimen with real live data ($STANDARD) if specimen card exists (on homepage)
+if ($('#heroSpecimen')) {
+  runScan('0x88ad8DdF1E3898412146a534538d418c6F8A9062').then(r => renderSpecimen(r)).catch(() => {});
+}
+
+// Auto-scan from query parameter (?ca=0x...) or hash (#0x...)
+(function checkAutoScan() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const ca = urlParams.get('ca') || urlParams.get('address') || (window.location.hash && /^#0x[a-fA-F0-9]{40}$/i.test(window.location.hash) ? window.location.hash.slice(1) : null);
+  if (ca && /^0x[a-fA-F0-9]{40}$/i.test(ca)) {
+    if (input && form) {
+      input.value = ca;
+      setTimeout(() => doScan(ca.toLowerCase()), 150);
+    } else if (heroInput) {
+      heroInput.value = ca;
+      setTimeout(() => handleHeroScan(), 150);
+    }
+  }
+})();
