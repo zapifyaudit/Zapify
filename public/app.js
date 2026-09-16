@@ -63,8 +63,6 @@ function setState(state) {
   document.body.dataset.state = state;
   const btn = $('#scanBtn');
   if (btn) btn.disabled = state === 'scanning';
-  const heroBtn = $('#heroScanBtn');
-  if (heroBtn) heroBtn.disabled = state === 'scanning';
   if (state === 'scanning' || state === 'result' || state === 'error') {
     const el = $('#scanner') || $('#scanForm');
     if (el) el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
@@ -1196,16 +1194,30 @@ function renderSpecimen(data) {
     }
 
     let topShare = null;
-    const supply = c?.totalSupply ? BigInt(c.totalSupply) : (e?.token?.total_supply ? BigInt(e.token.total_supply) : null);
-    if (supply && supply > 0n && e?.holders?.length) {
-      const pairSet = m?.pairAddresses || new Set();
-      const nonPool = e.holders.filter(h => !DEAD.has(lc(h.address?.hash)) && !pairSet.has(lc(h.address?.hash)));
-      if (nonPool.length > 0) {
-        topShare = Math.min(100, Math.max(0, Number(BigInt(nonPool[0].value || 0) * 10000n / supply) / 100));
-      }
+    let supply = c?.totalSupply ? BigInt(c.totalSupply) : (e?.token?.total_supply ? BigInt(e.token.total_supply) : null);
+    if (!supply && e?.holders?.length) {
+      try {
+        supply = e.holders.reduce((acc, h) => acc + BigInt(h.value || 0), 0n);
+      } catch {}
     }
-    if (topShare != null && !isNaN(topShare)) {
+    if (supply && supply > 0n && e?.holders?.length) {
+      try {
+        const pairSet = m?.pairAddresses || new Set();
+        const nonPool = e.holders.filter(h => !DEAD.has(lc(h.address?.hash)) && !pairSet.has(lc(h.address?.hash)));
+        const target = nonPool.length > 0 ? nonPool[0] : e.holders[0];
+        if (target) {
+          const v = BigInt(target.value || 0);
+          const pctVal = Number(v * 10000n / supply) / 100;
+          if (!isNaN(pctVal) && pctVal >= 0 && pctVal <= 100) {
+            topShare = pctVal;
+          }
+        }
+      } catch {}
+    }
+    if (topShare != null) {
       items.push({ sev: topShare > 20 ? 'm' : 'l', text: `Largest wallet holds ${topShare.toFixed(1)}%` });
+    } else if (e?.holders?.length) {
+      items.push({ sev: 'l', text: `${e.holders.length.toLocaleString()} holders on Blockscout` });
     }
 
     if (m?.liquidityUsd) {
