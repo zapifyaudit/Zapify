@@ -1335,48 +1335,74 @@ const mainResult = $('#mainResult');
 let mainScanning = false;
 
 function renderMainReport(el, r) {
-  const res = r.result, m = r.market, h = r.holderStats, s = r.sentiment;
-  const holders = r.explorer?.token?.holders_count ?? r.explorer?.token?.holders;
-  const verified = r.explorer?.verified;
-  const levelText = { low: 'Low risk', medium: 'Caution', high: 'High risk' };
+  if (!el || !r) return;
+  const address = r.address || '';
+  const token = r.token || {};
+  const score = r.score || {};
+  const modules = r.modules || {};
+  const findings = Array.isArray(r.findings) ? r.findings : [];
+  const coverage = r.coverage || { ok: 5, total: 5 };
+
+  const c = modules?.contract;
+  const e = modules?.explorer;
+  const m = modules?.market;
+  const f = modules?.funding;
+  const s = modules?.sentiment;
+
+  const sym = token?.symbol || m?.symbol || 'TOKEN';
+  const name = token?.name || m?.name || sym;
+  const sv = typeof score.value === 'number' ? score.value : 0;
+  const verdict = score.verdict || (sv >= 60 ? 'High risk' : sv >= 30 ? 'Caution' : 'Low risk');
+  const level = sv >= 60 ? 'high' : sv >= 30 ? 'medium' : 'low';
+
+  const holders = e?.token?.holders_count ?? (Array.isArray(e?.holders) ? e.holders.length : '—');
+  const verified = e?.verified == null ? '—' : (e.verified ? 'Yes' : 'No');
+  const price = m?.priceUsd != null ? '$' + Number(m.priceUsd).toPrecision(4) : '—';
+  const liquidity = m?.liquidityUsd != null ? fmtUsd(m.liquidityUsd) : 'unavailable';
+
   const rows = [
     ['Network', 'Robinhood Chain (4663)'],
-    ['Price', m?.priceUsd ? fmtUsd(m.priceUsd) : '—'],
-    ['Liquidity', m?.liquidityUsd != null ? fmtUsd(m.liquidityUsd) : 'unavailable'],
-    ['Holders', holders != null ? Number(holders).toLocaleString('en-US') : '—'],
-    ['Largest wallet', h?.topWallet ? pct(h.topWallet.share) : '—'],
-    ['Source verified', verified == null ? '—' : verified ? 'Yes' : 'No'],
-    ['Buyer pattern', r.flow ? res.subclass : 'not enough trades'],
-    ['𝕏 sentiment', s?.enabled ? `${s.label}, ${s.posts} posts` : 'open search ↗']
+    ['Price', price],
+    ['Liquidity', liquidity],
+    ['Holders', typeof holders === 'number' ? holders.toLocaleString('en-US') : String(holders)],
+    ['Source verified', verified],
+    ['Buyer pattern', f ? (score.subclass || 'Traced') : 'Not enough trades'],
+    ['𝕏 sentiment', s?.posts > 0 ? `${s.label} (${s.posts} posts)` : 'No active discussion']
   ];
-  const findings = res.findings || [];
+
+  const activeFindings = findings.filter(item => item.severity !== 'pass');
+  const shownFindings = activeFindings.length > 0 ? activeFindings : findings.slice(0, 4);
+
   const links = [
-    { label: 'Blockscout', url: `https://robinhoodchain.blockscout.com/token/${r.address}` },
-    m?.dexUrl ? { label: 'DexScreener', url: m.dexUrl } : null,
-    ...(s?.links || []).map(l => ({ label: '𝕏 ' + l.label, url: l.url }))
+    { label: 'Blockscout', url: `https://robinhoodchain.blockscout.com/token/${address}` },
+    (m?.dexUrl || (m?.primary?.pairAddress ? `https://dexscreener.com/robinhood/${m.primary.pairAddress}` : null))
+      ? { label: 'DexScreener', url: m?.dexUrl || `https://dexscreener.com/robinhood/${m.primary.pairAddress}` }
+      : null,
+    sym && /^[A-Za-z]/.test(sym) ? { label: `𝕏 $${sym}`, url: `https://x.com/search?q=%24${encodeURIComponent(sym)}&f=live` } : null,
+    address ? { label: '𝕏 CA Search', url: `https://x.com/search?q=${encodeURIComponent(address)}&f=live` } : null
   ].filter(Boolean);
 
   el.innerHTML = `
     <div class="rep-top">
-      <div class="rep-id"><strong>$${esc(r.symbol || 'TOKEN')}</strong><span>${esc(r.name || r.address)}</span></div>
-      <span class="rep-verdict lv-${res.level}">${levelText[res.level] || res.level}</span>
+      <div class="rep-id"><strong>$${esc(sym)}</strong><span>${esc(name)}</span></div>
+      <span class="rep-verdict lv-${level}">${esc(verdict)}</span>
     </div>
     <div class="rep-score">
-      <div class="rep-bar" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${res.score}" aria-label="Risk score"><span style="width:${res.score}%"></span></div>
-      <b>${res.score} / 100</b>
+      <div class="rep-bar" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${sv}" aria-label="Risk score"><span style="width:${sv}%"></span></div>
+      <b>${sv} / 100</b>
     </div>
     ${rows.map(([k, v]) => `<div class="mini-row"><span>${k}</span><span>${esc(v)}</span></div>`).join('')}
-    <div class="rep-sub">Findings (${findings.length})</div>
-    <ul class="rep-findings">${findings.length ? findings.map(f => `<li class="sev-${f.severity}"><span class="sev-tag">${f.severity}</span>${esc(f.text)}</li>`).join('') : '<li class="sev-low"><span class="sev-tag">ok</span>No red flags in the checks that ran.</li>'}</ul>
+    <div class="rep-sub">${shownFindings.length ? `Findings (${shownFindings.length})` : 'Findings'}</div>
+    <ul class="rep-findings">${shownFindings.length ? shownFindings.map(item => `<li class="sev-${item.severity}"><span class="sev-tag">${item.severity}</span>${esc(item.title || item.text || item.description)}</li>`).join('') : '<li class="sev-low"><span class="sev-tag">ok</span>No red flags in the checks that ran.</li>'}</ul>
     <div class="rep-links">${links.map(l => `<a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">${esc(l.label)} ↗</a>`).join('')}</div>
-    <div class="rep-foot">Coverage ${Math.round(res.coverage * 100)}% for ${esc(shortAddr(r.address))}. <a href="#scanner" class="main-to-scanner" style="text-decoration:underline;font-weight:700">Open in Scanner Console ↗</a></div>
+    <div class="rep-foot">Coverage ${coverage.ok}/${coverage.total} sources on Robinhood Chain. <a href="#scanner" class="main-to-scanner" style="text-decoration:underline;font-weight:700">Open in Scanner Console ↗</a></div>
   `;
 
   el.querySelector('.main-to-scanner')?.addEventListener('click', (e) => {
     e.preventDefault();
     $('#scanner')?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
     if (input && form) {
-      input.value = r.address;
+      input.value = address;
       form.requestSubmit();
     }
   });
