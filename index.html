@@ -293,11 +293,13 @@ body[data-state="error"] [data-view="error"]{ display:block; }
 .score-big{ margin-top:18px; font-size: clamp(96px, 11vw, 140px); font-stretch:120%; font-weight:850; letter-spacing:-0.05em; line-height:.8; }
 .score-big small{ font-size:20px; font-weight:600; letter-spacing:0; color: var(--gray-text); }
 .meter{ position:relative; }
-.zones{ display:grid; grid-template-columns: 30fr 30fr 40fr; gap:4px; height:14px; }
-.zones span{ border-radius:4px; background: var(--gray-card); }
-.zones span.on-high{ background: var(--danger); }
+.zones{ display:grid; grid-template-columns: 40fr 30fr 30fr; gap:4px; height:14px; }
+.zones span{ border-radius:4px; background: var(--gray-card); transition: background .3s; }
+.zones span#zoneHigh.on-high{ background: var(--danger); }
+.zones span#zoneMid.on-mid{ background: #f59e0b; }
+.zones span#zoneSafe.on-safe{ background: var(--lime); }
 .needle{ position:absolute; top:-7px; width:4px; height:28px; border-radius:2px; background: var(--white); box-shadow: 0 0 0 2px var(--ink); transform: translateX(-2px); transition: left 1s var(--ease); }
-.zone-labels{ display:grid; grid-template-columns: 30fr 30fr 40fr; gap:4px; margin-top:10px; font-size:12px; color: var(--gray-text); }
+.zone-labels{ display:grid; grid-template-columns: 40fr 30fr 30fr; gap:4px; margin-top:10px; font-size:12px; color: var(--gray-text); }
 .coverage{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding-top:18px; border-top:1px solid var(--gray-card); font-size:13px; color: var(--gray-text); }
 .coverage .dots{ display:flex; gap:5px; }
 .coverage .dots i{ width:10px; height:10px; border-radius:3px; background: var(--lime); }
@@ -803,13 +805,13 @@ body[data-state="result"] .rise.d2{ animation-delay:.12s; }
           </div>
           <div class="vc-side on-ink">
             <div>
-              <div class="score-top"><span class="verdict" id="scoreVerdict">—</span><span>Risk score</span></div>
+              <div class="score-top"><span class="verdict" id="scoreVerdict">—</span><span>Safety score</span></div>
               <div class="score-big"><span id="scoreValue">—</span><small> / 100</small></div>
             </div>
             <div class="meter" aria-hidden="true">
-              <div class="zones"><span></span><span></span><span id="zoneHigh"></span></div>
-              <div class="needle" id="needle" style="left:0%"></div>
-              <div class="zone-labels"><span>Low 0–29</span><span>Caution 30–59</span><span>High 60–100</span></div>
+              <div class="zones"><span id="zoneHigh"></span><span id="zoneMid"></span><span id="zoneSafe"></span></div>
+              <div class="needle" id="needle" style="left:100%"></div>
+              <div class="zone-labels"><span>High 0–39</span><span>Caution 40–69</span><span>Safe 70–100</span></div>
             </div>
             <div class="coverage">
               <span id="coverageText">Data coverage: — of 5 sources</span>
@@ -964,9 +966,9 @@ body[data-state="result"] .rise.d2{ animation-delay:.12s; }
       <li><h3>Read the verdict</h3><p>A score from 0 to 100, a verdict, and every finding that moved it.</p></li>
     </ol>
     <div class="bands" role="list">
-      <div role="listitem"><span class="verdict low">Low risk</span><span class="range">0–29</span><p>No serious flags in the checks that ran.</p></div>
-      <div role="listitem"><span class="verdict medium">Caution</span><span class="range">30–59</span><p>Some flags. Read them before you size in.</p></div>
-      <div role="listitem"><span class="verdict high">High risk</span><span class="range">60–100</span><p>Serious flags, or a hard stop such as zero sells or a majority whale.</p></div>
+      <div role="listitem"><span class="verdict low">Safe</span><span class="range">70–100</span><p>No serious flags in the checks that ran. Clean contract and organic trading.</p></div>
+      <div role="listitem"><span class="verdict medium">Caution</span><span class="range">40–69</span><p>Some warning flags detected. Review findings before sizing in.</p></div>
+      <div role="listitem"><span class="verdict high">High risk</span><span class="range">0–39</span><p>Serious red flags, such as honeypot, active mint, or whale dominance.</p></div>
     </div>
     <p class="coverage-note"><b>Data coverage comes with every report.</b> It shows how many of the five data sources answered, so a clean result with low coverage reads as incomplete rather than safe.</p>
   </div>

@@ -553,7 +553,8 @@ function computeScore(findings) {
   let score = Math.round(100 * (1 - Math.exp(-totalWeight / 14)));
   if (hasHardGate && score < 80) score = 80;
   const verdict = score >= 60 ? 'High risk' : score >= 30 ? 'Caution' : 'Low risk';
-  return { value: score, verdict };
+  const safetyScore = Math.max(0, 100 - score);
+  return { value: score, verdict, safetyScore };
 }
 
 function computeSubclass(f) {
@@ -780,13 +781,17 @@ function renderResult(data) {
 
   // Score
   const sv = score.value;
+  const safety = score.safetyScore != null ? score.safetyScore : Math.max(0, 100 - sv);
   const svEl = $('#scoreVerdict');
   if (svEl) {
-    svEl.textContent = score.verdict;
+    svEl.textContent = sv >= 60 ? 'High risk' : sv >= 30 ? 'Caution' : 'Safe';
     svEl.className = 'verdict ' + (sv >= 60 ? 'high' : sv >= 30 ? 'medium' : 'low');
   }
-  const scoreEl = $('#scoreValue'); if (scoreEl) scoreEl.textContent = sv;
-  const zoneHigh = $('#zoneHigh'); if (zoneHigh) zoneHigh.className = sv >= 60 ? 'on-high' : '';
+  const scoreEl = $('#scoreValue'); if (scoreEl) scoreEl.textContent = safety;
+  const zoneHigh = $('#zoneHigh'), zoneMid = $('#zoneMid'), zoneSafe = $('#zoneSafe');
+  if (zoneHigh) zoneHigh.className = sv >= 60 ? 'on-high' : '';
+  if (zoneMid) zoneMid.className = (sv >= 30 && sv < 60) ? 'on-mid' : '';
+  if (zoneSafe) zoneSafe.className = sv < 30 ? 'on-safe' : '';
 
   const needle = $('#needle');
   if (needle) {
@@ -794,7 +799,7 @@ function renderResult(data) {
     needle.style.left = '0%';
     requestAnimationFrame(() => requestAnimationFrame(() => {
       needle.style.transition = '';
-      needle.style.left = sv + '%';
+      needle.style.left = safety + '%';
     }));
   }
 
@@ -1163,7 +1168,8 @@ function buildBreakdown(findings, score) {
 
   if (bkFormula) {
     const totalW = risk.reduce((s, f) => s + (WEIGHTS[f.code] || 0), 0);
-    bkFormula.innerHTML = `<b>Score formula:</b> round(100 × (1 − e^(−${totalW} / 14))) = <b>${score.value}</b>.`;
+    const safety = score.safetyScore != null ? score.safetyScore : Math.max(0, 100 - score.value);
+    bkFormula.innerHTML = `<b>Score formula:</b> 100 − round(100 × (1 − e^(−${totalW} / 14))) = <b>${safety} / 100 Safety Score</b> (${score.value}% risk penalty).`;
   }
 }
 
@@ -1229,16 +1235,21 @@ function renderSpecimen(data) {
   if (specAddr) specAddr.textContent = `${short(address)} on Robinhood Chain`;
 
   const specVerdict = $('#specVerdict');
+  const sv = score ? (score.value || 0) : 0;
+  const safety = score?.safetyScore != null ? score.safetyScore : Math.max(0, 100 - sv);
   if (specVerdict && score) {
-    specVerdict.textContent = score.verdict || 'Low risk';
-    specVerdict.className = `verdict ${score.value >= 60 ? 'high' : score.value >= 30 ? 'medium' : 'low'}`;
+    specVerdict.textContent = sv >= 60 ? 'High risk' : sv >= 30 ? 'Caution' : 'Safe';
+    specVerdict.className = `verdict ${sv >= 60 ? 'high' : sv >= 30 ? 'medium' : 'low'}`;
   }
 
   const specScore = $('#specScore');
-  if (specScore && score) specScore.textContent = score.value;
+  if (specScore && score) specScore.textContent = safety;
 
   const specBar = $('#specBar');
-  if (specBar && score) specBar.style.width = score.value + '%';
+  if (specBar && score) {
+    specBar.style.width = safety + '%';
+    specBar.style.background = sv >= 60 ? 'var(--danger)' : sv >= 30 ? '#f59e0b' : 'var(--lime)';
+  }
 
   const onchainList = $('#specOnchain');
   if (onchainList) {
@@ -1414,7 +1425,8 @@ function renderMainReport(el, r) {
   const sym = token?.symbol || m?.symbol || 'TOKEN';
   const name = token?.name || m?.name || sym;
   const sv = typeof score.value === 'number' ? score.value : 0;
-  const verdict = score.verdict || (sv >= 60 ? 'High risk' : sv >= 30 ? 'Caution' : 'Low risk');
+  const safety = score.safetyScore != null ? score.safetyScore : Math.max(0, 100 - sv);
+  const verdict = sv >= 60 ? 'High risk' : sv >= 30 ? 'Caution' : 'Safe';
   const level = sv >= 60 ? 'high' : sv >= 30 ? 'medium' : 'low';
 
   const holders = e?.token?.holders_count ?? (Array.isArray(e?.holders) ? e.holders.length : '—');
@@ -1448,18 +1460,19 @@ function renderMainReport(el, r) {
       </div>
       <div class="mr-score-box">
         <span class="verdict ${level}">${esc(verdict)}</span>
-        <div class="mr-score-num"><b>${sv}</b><span> / 100</span></div>
+        <div class="mr-score-num"><b>${safety}</b><span> / 100</span></div>
+        <small style="font-size:11px;color:var(--muted);font-weight:600;display:block;margin-top:2px;">Safety score (${sv}% risk)</small>
       </div>
     </div>
 
     <div class="mr-meter-wrap">
       <div class="mr-meter-bar">
-        <div class="mr-meter-fill ${level}" style="width:${Math.max(sv, 4)}%"></div>
+        <div class="mr-meter-fill ${level}" style="width:${Math.max(safety, 4)}%"></div>
       </div>
       <div class="mr-meter-labels">
-        <span>Low risk (0–29)</span>
-        <span>Caution (30–59)</span>
-        <span>High risk (60–100)</span>
+        <span>High risk (0–39)</span>
+        <span>Caution (40–69)</span>
+        <span>Safe (70–100)</span>
       </div>
     </div>
 
