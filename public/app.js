@@ -1571,7 +1571,7 @@ function renderMainReport(el, r) {
 }
 
 async function handleMainScan() {
-  if (mainScanning || !mainInput) return;
+  if (!mainInput) return;
   const val = mainInput.value.trim();
   if (!val) { mainInput.focus(); return; }
   if (!/^0x[a-fA-F0-9]{40}$/.test(val)) {
@@ -1582,32 +1582,17 @@ async function handleMainScan() {
     mainInput.focus();
     return;
   }
-  mainScanning = true;
-  if (mainBtn) { mainBtn.disabled = true; mainBtn.textContent = 'Scanning…'; }
-  if (mainStatus) {
-    const txt = mainStatus.querySelector('.status-text');
-    if (txt) txt.textContent = 'Scanning on Robinhood Chain…';
-    mainStatus.classList.add('active');
-  }
-  if (mainResult) mainResult.classList.remove('active');
-  try {
-    const report = await runScan(val.toLowerCase(), (t) => {
-      const txt = mainStatus?.querySelector('.status-text');
-      if (txt) txt.textContent = t;
-    });
-    if (mainResult) {
-      renderMainReport(mainResult, report);
-      mainResult.classList.add('active');
+
+  // Forward to the full Scanner Console so user sees the full report card
+  const scannerInput = $('#addr');
+  const scannerSection = $('#scanner');
+  if (scannerInput) {
+    scannerInput.value = val;
+    if (scannerSection) {
+      scannerSection.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
     }
-  } catch (err) {
-    if (mainResult) {
-      mainResult.innerHTML = `<div class="rep-error">${esc(err?.message || 'Scan failed. Check contract address.')}</div>`;
-      mainResult.classList.add('active');
-    }
-  } finally {
-    if (mainStatus) mainStatus.classList.remove('active');
-    if (mainBtn) { mainBtn.disabled = false; mainBtn.textContent = 'Run full scan'; }
-    mainScanning = false;
+    // Small delay so scroll completes before scan starts rendering
+    setTimeout(() => doScan(val.toLowerCase()), scannerSection ? 350 : 0);
   }
 }
 
