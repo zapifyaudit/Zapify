@@ -569,25 +569,25 @@ body[data-state="result"] .rise.d2{ animation-delay:.12s; }
   <div class="wrap nav-in">
     <a href="#top" class="logo"><svg aria-hidden="true"><use href="#logo"/></svg>Zapify</a>
     <div class="nav-links">
-      <a href="#scanner">Scanner</a>
+      <a href="#scan">Scanner</a>
       <a href="#checks">What we check</a>
       <a href="#how">How scoring works</a>
       <a href="#faq">FAQ</a>
     </div>
     <div class="nav-right">
       <span class="net"><span class="pulse" aria-hidden="true"></span>Robinhood Chain, 4663</span>
-      <a href="#scanner" class="btn btn-lime btn-sm">Scan a token</a>
+      <a href="#scan" class="btn btn-lime btn-sm">Scan a token</a>
       <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileNav">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h18M3 12h18M3 17h18"/></svg>
       </button>
     </div>
   </div>
   <div class="mobile-nav" id="mobileNav">
-    <a href="#scanner">Scanner</a>
+    <a href="#scan">Scanner</a>
     <a href="#checks">What we check</a>
     <a href="#how">How scoring works</a>
     <a href="#faq">FAQ</a>
-    <a href="#scanner" style="color:var(--lime);background:var(--ink);font-weight:700">Scan a token ↗</a>
+    <a href="#scan" style="color:var(--lime);background:var(--ink);font-weight:700">Scan a token ↗</a>
   </div>
 </nav>
 
@@ -711,30 +711,12 @@ body[data-state="result"] .rise.d2{ animation-delay:.12s; }
     </div>
 
     <!-- ============ LIVE SCANNER (INTEGRATED IN WHAT WE CHECK) ============ -->
-    <div id="scanner" style="margin-top:64px; scroll-margin-top:84px;">
-      <div class="console" style="border:1.5px solid var(--ink); border-radius:var(--r-lg); padding:32px 30px; background:var(--white);">
-        <div class="console-row" style="margin-bottom:18px;">
-          <div>
-            <span class="hero-tag" style="margin-bottom:8px;"><span class="dot"></span>Scanner Console</span>
-            <h3 class="display" style="font-size:clamp(30px, 4vw, 44px);">Scan a token now.</h3>
-          </div>
-          <p class="muted">Read-only. No wallet, no sign-in, nothing stored.</p>
-        </div>
-        <form class="form" id="scanForm" novalidate>
-          <label class="field">
-            <span class="sr-only">Robinhood Chain token contract address</span>
-            <svg aria-hidden="true"><use href="#lens"/></svg>
-            <input id="addr" type="text" placeholder="Paste a token contract address, 0x…" autocomplete="off" spellcheck="false">
-          </label>
-          <button class="btn btn-lime" id="scanBtn" type="submit">Scan token</button>
-        </form>
-        <div class="field-hint" id="hint">
-          <span>Try 3 examples:</span>
-          <button type="button" class="chip" data-scanner-fill="0x88ad4a868ff114ab811eb7754f92bc31cb7f9062"><span class="dot"></span>1. $STANDARD (Clean)</button>
-          <button type="button" class="chip" data-scanner-fill="0x3f2a58b8d41e738c6bf656a81e35a092891c9c41"><span class="dot" style="background:var(--danger)"></span>2. $EXAMPLE (High risk)</button>
-          <button type="button" class="chip" data-scanner-fill="0x0000000000000000000000000000000000000abc"><span class="dot" style="background:#b5b5aa"></span>3. No contract</button>
-        </div>
-      </div>
+    <div id="scanner" style="margin-top:24px; scroll-margin-top:84px;">
+      <form id="scanForm" style="display:none;" novalidate>
+        <input id="addr" type="hidden">
+        <button id="scanBtn" type="submit" style="display:none;"></button>
+        <div class="field-hint" id="hint"></div>
+      </form>
 
       <!-- ============ SCANNING VIEW ============ -->
       <section data-view="scanning" aria-labelledby="scanning-title" style="margin-top:32px;">
