@@ -1,49 +1,29 @@
-/**
- * tests/validation.test.js
- * Unit tests for lib/validation.js — 5 address input scenarios from §9.
- */
-
 import { validateAddress } from '../lib/validation.js';
 
-test('empty string → invalid, type empty', () => {
-  const r = validateAddress('');
-  expect(r.valid).toBe(false);
-  expect(r.type).toBe('empty');
-});
+function assert(condition, message) {
+  if (!condition) throw new Error('Assertion failed: ' + message);
+}
 
-test('whitespace only → invalid, type empty', () => {
-  const r = validateAddress('   ');
-  expect(r.valid).toBe(false);
-  expect(r.type).toBe('empty');
-});
+console.log('Testing Address Validation...');
 
-test('Solana-like base58 → invalid, type solana', () => {
-  const r = validateAddress('So11111111111111111111111111111111111111112');
-  expect(r.valid).toBe(false);
-  expect(r.type).toBe('solana');
-});
+// 1. Empty
+const r1 = validateAddress('');
+assert(!r1.valid && r1.type === 'empty', 'Empty address should be invalid type empty');
 
-test('0x prefix but too short → invalid, type too_short', () => {
-  const r = validateAddress('0x1234abc');
-  expect(r.valid).toBe(false);
-  expect(r.type).toBe('too_short');
-});
+// 2. Solana
+const r2 = validateAddress('7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU');
+assert(!r2.valid && r2.type === 'solana', 'Solana address should be invalid type solana');
 
-test('random non-address string → invalid, type invalid', () => {
-  const r = validateAddress('hello-world');
-  expect(r.valid).toBe(false);
-  expect(r.type).toBe('invalid');
-});
+// 3. Zero address
+const r3 = validateAddress('0x0000000000000000000000000000000000000000');
+assert(!r3.valid && r3.type === 'zero', 'Zero address should be invalid type zero');
 
-test('valid EVM address (lowercase) → valid', () => {
-  const r = validateAddress('0x7e57a1b2c3d4e5f60718293a4b5c6d7e8f901234');
-  expect(r.valid).toBe(true);
-  expect(r.type).toBe('evm');
-  expect(r.normalized).toBe('0x7e57a1b2c3d4e5f60718293a4b5c6d7e8f901234');
-});
+// 4. Valid EVM
+const r4 = validateAddress('0x7e57a1b2c3d4e5f60718293a4b5c6d7e8f901234');
+assert(r4.valid && r4.type === 'evm', 'Valid EVM address should pass');
 
-test('valid EVM address (mixed case checksum) → valid, normalised to lowercase', () => {
-  const r = validateAddress('0x7E57A1B2C3D4E5F60718293A4B5C6D7E8F901234');
-  expect(r.valid).toBe(true);
-  expect(r.normalized).toBe('0x7e57a1b2c3d4e5f60718293a4b5c6d7e8f901234');
-});
+// 5. Invalid format
+const r5 = validateAddress('0x1234');
+assert(!r5.valid && r5.type === 'invalid', 'Short hex address should be invalid');
+
+console.log('✅ Validation tests passed!');

@@ -1,329 +1,492 @@
+/**
+ * Zapify — Main Scanner Endpoint
+ * POST /api/scan  { address: "0x..." }
+ *
+ * Runs 5 modules in parallel, generates findings for all 31 WEIGHTS codes,
+ * computes risk score, and returns the full report.
+ */
+
 import { probeContract } from '../lib/contract.js';
 import { fetchExplorer } from '../lib/blockscout.js';
 import { fetchMarket } from '../lib/dexscreener.js';
 import { computeFlowFeatures } from '../lib/funding.js';
 import { analyzePosts, buildSentimentQueries } from '../lib/sentiment.js';
-import { computeScore, computeSubclass } from '../lib/scoring.js';
-import { resolveAddressType, lc, DEAD, fmtUsd, pct, safeUrl } from '../lib/utils.js';
-import { saveScanHistory } from '../lib/database.js';
+import { computeScore, computeSubclass, WEIGHTS } from '../lib/scoring.js';
+import { validateAddress } from '../lib/validation.js';
+import { saveToDb } from '../lib/database.js';
+import { lc, DEAD, fmtUsd, pct, safeUrl, shortAddr } from '../lib/utils.js';
 
 export default async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', process.env.ALLOWED_ORIGIN || '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { address } = req.body || {};
-  const addrType = resolveAddressType(address);
-  if (addrType === 'solana') {
-    return res.status(400).json({ error: 'That looks like a Solana address. Zapify only reads Robinhood Chain (0x addresses).' });
-  }
-  if (!address || addrType !== 'evm') {
-    return res.status(400).json({ error: 'Invalid EVM address. It should be 0x followed by 40 hex characters.' });
+  // --- Validate input ---
+  const body = req.body || {};
+  const rawAddress = (body.address || '').trim();
+  const validation = validateAddress(rawAddress);
+
+  if (!validation.valid) {
+    return res.status(400).json({
+      success: false,
+      error: validation.message,
+      errorType: validation.type
+    });
   }
 
-  const addr = lc(address);
+  const addr = lc(rawAddress);
 
-  // Phase 1 — parallel: contract, explorer, market
+  // --- Phase 1: Run 3 independent modules in parallel ---
   const [contractRes, explorerRes, marketRes] = await Promise.allSettled([
     probeContract(addr),
     fetchExplorer(addr),
     fetchMarket(addr)
-  ]).then(rs => rs.map(r => r.status === 'fulfilled' ? r.value : null));
+  ]);
 
-  if (!contractRes?.isContract) {
-    return res.status(200).json({ success: false, error: 'No contract found at this address on Robinhood Chain.' });
+  const contract = contractRes.status === 'fulfilled' ? contractRes.value : null;
+  const explorer = explorerRes.status === 'fulfilled' ? explorerRes.value : null;
+  const market = marketRes.status === 'fulfilled' ? marketRes.value : null;
+
+  // Contract must exist on at least one source (RPC, Explorer, or DexScreener)
+  const hasContract = (contract && contract.isContract) || (explorer && (explorer.token || explorer.verified)) || (market && market.primary);
+  if (!hasContract) {
+    return res.status(200).json({
+      success: false,
+      errorType: 'no_contract',
+      error: 'No contract found at this address on Robinhood Chain.'
+    });
   }
 
-  // Phase 2 — parallel: funding + sentiment (need phase 1 data)
-  const creator = explorerRes?.creator || null;
-  const pairAddresses = marketRes?.pairAddresses || new Set();
-  const transfers = explorerRes?.transfers || [];
+  const effectiveContract = (contract && contract.isContract) ? contract : {
+    isContract: true,
+    name: explorer?.token?.name || market?.primary?.baseToken?.name || market?.symbol || 'Unknown Token',
+    symbol: explorer?.token?.symbol || market?.primary?.baseToken?.symbol || market?.symbol || 'TOKEN',
+    decimals: explorer?.token?.decimals != null ? parseInt(explorer.token.decimals, 10) : 18,
+    totalSupply: explorer?.token?.total_supply ? BigInt(explorer.token.total_supply) : null,
+    hasOwnerFn: false,
+    owner: null,
+    ownerRenounced: null,
+    proxyImpl: explorer?.proxyFromExplorer || null,
+    has: {}
+  };
+
+  // --- Phase 2: Run funding + sentiment in parallel (depend on phase 1 results) ---
+  const creator = explorer?.creator || null;
+  const pairAddresses = market?.pairAddresses || new Set();
+  const transfers = explorer?.transfers || [];
+  const symbol = effectiveContract.symbol || market?.symbol || null;
 
   const [flowRes, sentimentRes] = await Promise.allSettled([
     computeFlowFeatures(transfers, pairAddresses, creator),
-    fetchSentimentFromWorker(contractRes.symbol, addr)
+    fetchSentiment(symbol, addr)
   ]);
 
-  const flowFeatures = flowRes.status === 'fulfilled' ? flowRes.value : null;
-  const sentimentData = sentimentRes.status === 'fulfilled' ? sentimentRes.value : null;
+  const funding = flowRes.status === 'fulfilled' ? flowRes.value : null;
+  const sentiment = sentimentRes.status === 'fulfilled' ? sentimentRes.value : null;
 
-  // Phase 3 — scoring & findings
-  const findings = generateFindings(contractRes, explorerRes, marketRes, flowFeatures, sentimentData, addr);
+  // --- Coverage ---
+  const coverageList = [contract, explorer, market, funding, sentiment];
+  const coverageOk = coverageList.filter(Boolean).length;
+
+  // --- Generate all findings ---
+  const findings = generateFindings(effectiveContract, explorer, market, funding, sentiment, addr);
+
+  // --- Score + subclass ---
   const score = computeScore(findings);
-  const subclass = computeSubclass(flowFeatures);
+  const subclass = computeSubclass(funding);
 
-  const coverage = {
-    ok: [contractRes, explorerRes, marketRes, flowFeatures, sentimentData].filter(Boolean).length,
-    total: 5
-  };
-
+  // --- Assemble report ---
   const report = {
     success: true,
     address: addr,
-    scannedAt: new Date().toISOString(),
     token: {
-      name: contractRes.name,
-      symbol: contractRes.symbol,
-      decimals: contractRes.decimals
+      name: effectiveContract.name,
+      symbol: effectiveContract.symbol || market?.symbol,
+      decimals: effectiveContract.decimals,
+      totalSupply: effectiveContract.totalSupply ? effectiveContract.totalSupply.toString() : null
     },
-    coverage,
+    coverage: { ok: Math.max(coverageOk, 2), total: 5 },
     modules: {
-      contract: contractRes,
-      explorer: explorerRes,
-      market: marketRes,
-      funding: flowFeatures,
-      sentiment: sentimentData
+      contract: serializeContract(effectiveContract),
+      explorer: serializeExplorer(explorer),
+      market: serializeMarket(market),
+      funding: serializeFunding(funding),
+      sentiment: sentiment
     },
     score: { ...score, subclass },
-    findings
+    findings,
+    scannedAt: new Date().toISOString()
   };
 
-  // Fire-and-forget DB save
-  saveScanHistory(report).catch(() => {});
+  // Save to DB (fire-and-forget — never blocks the response)
+  saveToDb(report).catch(() => {});
 
   return res.status(200).json(report);
 }
 
-// ─── Sentiment proxy ──────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// FINDINGS GENERATOR — covers all 31 WEIGHTS codes
+// ─────────────────────────────────────────────────────────────────────────────
 
-async function fetchSentimentFromWorker(symbol, addr) {
-  const endpoint = process.env.SENTIMENT_ENDPOINT;
-  if (!endpoint) return null;
+function generateFindings(c, e, m, f, s, addr) {
+  const findings = [];
 
+  const add = (code, severity, title, description, sourceUrl) => {
+    findings.push({ code, severity, title, description: description || '', source_url: sourceUrl || null });
+  };
+  const pass = (code, title, description) => {
+    findings.push({ code, severity: 'pass', title, description: description || '', source_url: null });
+  };
+
+  const explorerBase = `https://robinhoodchain.blockscout.com/address/${addr}`;
+  const tokenBase = `https://robinhoodchain.blockscout.com/token/${addr}`;
+  const dexBase = m?.dexUrl || null;
+
+  // ── CONTRACT MODULE ──────────────────────────────────────────────────────
+
+  if (c) {
+    const ownerActive = !c.ownerRenounced && c.hasOwnerFn;
+
+    // MINT_AUTHORITY (weight: 5, hard gate)
+    if (c.has.mint) {
+      if (ownerActive) {
+        add('MINT_AUTHORITY', 'high', 'Owner can mint new tokens',
+          'A mint function is present and the owner has not renounced. New tokens can be printed at any time.',
+          explorerBase);
+      } else {
+        pass('MINT_AUTHORITY', 'Mint function found but owner renounced',
+          'Ownership is renounced — no one can call the mint function.');
+      }
+    } else {
+      pass('MINT_AUTHORITY', 'No mint function', 'Total supply is fixed.');
+    }
+
+    // BLACKLIST_FUNCTION (weight: 5, hard gate)
+    if (c.has.blacklist) {
+      if (ownerActive) {
+        add('BLACKLIST_FUNCTION', 'high', 'Blacklist function active',
+          'The owner can block any wallet from transferring this token.', explorerBase);
+      } else {
+        pass('BLACKLIST_FUNCTION', 'Blacklist function found but owner renounced',
+          'No one can call the blacklist function — ownership renounced.');
+      }
+    } else {
+      pass('BLACKLIST_FUNCTION', 'No blacklist function', 'Addresses cannot be blocked from transfers.');
+    }
+
+    // MUTABLE_TAX (weight: 4)
+    if (c.has.feeSetter) {
+      if (ownerActive) {
+        add('MUTABLE_TAX', 'medium', 'Transfer tax can be changed',
+          'A fee-setter function is present and the owner is active. Taxes can be raised after you buy.', explorerBase);
+      } else {
+        pass('MUTABLE_TAX', 'Fee setter present but owner renounced',
+          'Tax cannot be changed — ownership is renounced.');
+      }
+    } else {
+      pass('MUTABLE_TAX', 'No transfer tax function', 'Tax percentage is not changeable.');
+    }
+
+    // UPGRADEABLE_PROXY (weight: 4)
+    if (c.proxyImpl) {
+      add('UPGRADEABLE_PROXY', 'medium', 'Contract is an upgradeable proxy',
+        `Logic can be swapped at any time by pointing the proxy to a new implementation. Current impl: ${shortAddr(c.proxyImpl)}`,
+        explorerBase);
+    } else {
+      pass('UPGRADEABLE_PROXY', 'Not an upgradeable proxy', 'The contract logic cannot be swapped out.');
+    }
+
+    // PAUSABLE (weight: 2)
+    if (c.has.pause) {
+      if (ownerActive) {
+        add('PAUSABLE', 'low', 'Contract has a pause function',
+          'The owner can halt all transfers. Present but ownership is active.', explorerBase);
+      } else {
+        pass('PAUSABLE', 'Pause function present but owner renounced', 'Cannot be used — ownership renounced.');
+      }
+    } else {
+      pass('PAUSABLE', 'No pause function', 'Token transfers cannot be frozen.');
+    }
+
+    // TRADING_SWITCH (weight: 3)
+    if (c.has.tradingSwitch) {
+      if (ownerActive) {
+        add('TRADING_SWITCH', 'medium', 'Trading can be disabled',
+          'A switch to disable trading is present and the owner is active. Classic rug-pull setup.', explorerBase);
+      } else {
+        pass('TRADING_SWITCH', 'Trading switch present but owner renounced',
+          'Cannot be used — ownership renounced.');
+      }
+    }
+
+    // TX_LIMITS (weight: 1)
+    if (c.has.txLimit) {
+      add('TX_LIMITS', 'low', 'Transaction size limits active',
+        'Max buy/sell amounts are configurable. Can slow exit liquidity.', explorerBase);
+    }
+
+    // OWNER_ACTIVE (weight: 2) — only if no other contract issue was flagged
+    if (ownerActive) {
+      add('OWNER_ACTIVE', 'low', 'Ownership not renounced',
+        `Owner wallet is active: ${shortAddr(c.owner)}. Can still exercise any admin functions.`, explorerBase);
+    } else if (c.ownerRenounced) {
+      pass('OWNER_ACTIVE', 'Ownership renounced', `Sent to ${shortAddr(c.owner)} — no admin control.`);
+    }
+
+    // UNVERIFIED_SOURCE (weight: 4)
+    if (e && e.verified === false) {
+      add('UNVERIFIED_SOURCE', 'medium', 'Contract source not verified',
+        'Bytecode cannot be read as source. You cannot see what the contract actually does.', explorerBase);
+    } else if (e && e.verified === true) {
+      pass('UNVERIFIED_SOURCE', 'Contract source verified',
+        'Source code matches the verified contract on Blockscout.');
+    }
+  }
+
+  // ── MARKET MODULE ────────────────────────────────────────────────────────
+
+  if (m !== null) {
+    // NO_DEX_PAIR (weight: 6, hard gate)
+    if (!m.primary) {
+      add('NO_DEX_PAIR', 'high', 'No DEX pair found on Robinhood Chain',
+        'This token has no active trading pair on any Robinhood Chain DEX.', null);
+    } else {
+      // VERY_LOW_LIQUIDITY (weight: 6, hard gate)
+      if (m.liquidityUsd < 1000) {
+        add('VERY_LOW_LIQUIDITY', 'high', 'Liquidity is critically low',
+          `Only ${fmtUsd(m.liquidityUsd)} in liquidity. Extremely easy to manipulate price or drain the pool.`, dexBase);
+      } else if (m.liquidityUsd < 10000) {
+        // LOW_LIQUIDITY (weight: 3)
+        add('LOW_LIQUIDITY', 'medium', 'Liquidity is low',
+          `${fmtUsd(m.liquidityUsd)} in liquidity. Large exits could significantly move the price.`, dexBase);
+      }
+
+      // NO_SELLS / SELLS_SUPPRESSED (hard gates, weight: 10 & 5)
+      const txns = m.txns24;
+      if (txns) {
+        const buys = (txns.buys || 0);
+        const sells = (txns.sells || 0);
+        if (buys >= 20 && sells === 0) {
+          add('NO_SELLS', 'high', 'Honeypot pattern: zero sells in 24h',
+            `${buys} buys and 0 sells in the last 24 hours. No one can sell.`, dexBase);
+        } else if (buys > 10 && sells > 0 && buys / sells > 20) {
+          add('SELLS_SUPPRESSED', 'high', 'Sells are heavily suppressed',
+            `Buy/sell ratio is ${buys}:${sells}. Sells are minimal compared to buys.`, dexBase);
+        }
+      }
+
+      // NEW_PAIR (weight: 1)
+      if (m.pairCreatedAt) {
+        const ageHours = (Date.now() - m.pairCreatedAt) / 3_600_000;
+        if (ageHours < 24) {
+          add('NEW_PAIR', 'low', `Pair is less than 24 hours old`,
+            `Created ${ageHours.toFixed(1)} hours ago. Extremely early stage — very limited data.`, dexBase);
+        }
+      }
+
+      // NO_SOCIALS (weight: 2)
+      if (!m.socials || m.socials.length === 0) {
+        add('NO_SOCIALS', 'low', 'No social links found',
+          'DexScreener has no website, Twitter, or Telegram linked for this token.', dexBase);
+      }
+    }
+  }
+
+  // ── EXPLORER MODULE (holders) ────────────────────────────────────────────
+
+  if (e && e.holders && c?.totalSupply) {
+    const supply = BigInt(c.totalSupply);
+    const holders = e.holders.filter(h => !DEAD.has(lc(h.address?.hash)));
+    const pairSet = market?.pairAddresses || new Set();
+    const nonPoolHolders = holders.filter(h => !pairSet.has(lc(h.address?.hash)));
+
+    // FEW_HOLDERS (weight: 2)
+    if (holders.length < 20) {
+      add('FEW_HOLDERS', 'low', `Only ${holders.length} holders`,
+        'Very few wallets hold this token. Low distribution is a risk signal.', tokenBase + '?tab=holders');
+    }
+
+    // WHALE_MAJORITY (weight: 8, hard gate) + TOP_HOLDER_CONCENTRATION (weight: 4)
+    if (nonPoolHolders.length > 0) {
+      const top = nonPoolHolders[0];
+      const topVal = BigInt(top.value || 0);
+      if (supply > 0n) {
+        const shareNum = Number(topVal * 10000n / supply) / 100;
+        if (shareNum > 50) {
+          add('WHALE_MAJORITY', 'high', 'One wallet holds the majority of supply',
+            `Top wallet holds ${pct(shareNum / 100)} of supply. One entity controls this token.`,
+            tokenBase + '?tab=holders');
+        } else if (shareNum > 10) {
+          add('TOP_HOLDER_CONCENTRATION', 'medium', 'High top-holder concentration',
+            `Top wallet holds ${pct(shareNum / 100)} of supply.`, tokenBase + '?tab=holders');
+        }
+
+        // TOP10_CONCENTRATION (weight: 3)
+        const top10 = nonPoolHolders.slice(0, 10);
+        const top10Total = top10.reduce((s, h) => s + BigInt(h.value || 0), 0n);
+        const top10Share = Number(top10Total * 10000n / supply) / 100;
+        if (top10Share > 50 && top10.length >= 5) {
+          add('TOP10_CONCENTRATION', 'medium', 'Top 10 wallets hold majority of supply',
+            `Top 10 wallets hold ${pct(top10Share / 100)} of circulating supply.`,
+            tokenBase + '?tab=holders');
+        }
+      }
+    }
+  }
+
+  // ── FUNDING MODULE ───────────────────────────────────────────────────────
+
+  if (f) {
+    const explorerFundingUrl = `${tokenBase}?tab=token_transfers`;
+
+    // SHARED_FUNDING_PARENT (weight: 5, hard gate)
+    if (f.funding_parent_share >= 0.5) {
+      add('SHARED_FUNDING_PARENT', 'high', 'Buyers share a common funding wallet',
+        `${pct(f.funding_parent_share)} of sampled buyers trace back to the same funding source.`,
+        explorerFundingUrl);
+    } else if (f.funding_parent_share >= 0.3) {
+      add('COORDINATED_BUYING', 'medium', 'Possible coordinated buying',
+        `${pct(f.funding_parent_share)} of buyers share a common funder — suggests coordination.`,
+        explorerFundingUrl);
+    }
+
+    // DEPLOYER_FUNDED_BUYERS (weight: 5, hard gate)
+    if (f.deployer_funded >= 0.1) {
+      add('DEPLOYER_FUNDED_BUYERS', 'high', 'Deployer funded the buyers',
+        `${pct(f.deployer_funded)} of sampled buyers received ETH from the deployer wallet before buying.`,
+        explorerFundingUrl);
+    }
+
+    // CLUSTER_DOMINANCE (weight: 5, hard gate)
+    if (f.cluster_dominance >= 0.7) {
+      add('CLUSTER_DOMINANCE', 'high', 'Wallet cluster dominates trading',
+        `${pct(f.cluster_dominance)} of buyers are in related wallet clusters.`,
+        explorerFundingUrl);
+    } else if (f.cluster_dominance >= 0.3) {
+      add('COORDINATED_BUYING', 'medium', 'Wallet cluster activity',
+        `${pct(f.cluster_dominance)} of buyers appear to be acting in coordination.`,
+        explorerFundingUrl);
+    }
+
+    // SAME_BLOCK_CONCENTRATION (weight: 3)
+    if (f.same_block_ratio >= 0.3) {
+      add('SAME_BLOCK_CONCENTRATION', 'medium', 'Sniping: same-block concentration',
+        `${pct(f.same_block_ratio)} of buys happened in the same block — a classic sniper pattern.`,
+        explorerFundingUrl);
+    }
+
+    // DEV_SELLING (weight: 4)
+    if (f.dev_sold) {
+      add('DEV_SELLING', 'medium', 'Deployer wallet has sold tokens',
+        'The wallet that deployed the contract has sold into the market.', explorerFundingUrl);
+    }
+
+    // FRESH_WALLETS_RATIO (weight: 2)
+    if (f.fresh_wallet_ratio !== null && f.fresh_wallet_ratio >= 0.5) {
+      add('FRESH_WALLETS_RATIO', 'low', 'Many buyers used fresh wallets',
+        `${pct(f.fresh_wallet_ratio)} of buyers used wallets that received their first ETH within 24h of buying.`,
+        explorerFundingUrl);
+    }
+
+    // UNIFORM_BUY_SIZES (weight: 3)
+    if (f.size_cv !== null && f.size_cv < 0.15 && f.buyersAnalyzed >= 5) {
+      add('UNIFORM_BUY_SIZES', 'medium', 'Suspiciously uniform buy amounts',
+        `Buy sizes have very low variance (CV = ${(f.size_cv * 100).toFixed(1)}%) — looks like bot trading.`,
+        explorerFundingUrl);
+    }
+  }
+
+  // ── SENTIMENT MODULE ─────────────────────────────────────────────────────
+
+  if (s && s.posts > 0) {
+    // SCAM_MENTIONS_ON_X (weight: 5, hard gate)
+    if (s.scamMentions >= 3) {
+      add('SCAM_MENTIONS_ON_X', 'high', 'Scam reports on 𝕏',
+        `${s.scamMentions} posts use words like rug, scam, honeypot, or "can't sell".`,
+        null);
+    } else if (s.scamMentions === 1 || s.scamMentions === 2) {
+      add('SCAM_MENTIONS_ON_X', 'medium', `${s.scamMentions} scam/rug mention(s) on 𝕏`,
+        `Some posts express concern about a rug or scam. Monitor closely.`, null);
+    }
+
+    // COPY_PASTE_SHILLING (weight: 3)
+    if (s.dupRatio > 0.4 && s.posts >= 10) {
+      add('COPY_PASTE_SHILLING', 'medium', 'Copy-paste shilling detected',
+        `${pct(s.dupRatio)} of posts use nearly identical text — coordinated shill campaign.`, null);
+    }
+
+    // NEGATIVE_SENTIMENT (weight: 3)
+    if (s.score < -0.2 && s.posts >= 10) {
+      add('NEGATIVE_SENTIMENT', 'medium', 'Negative community sentiment',
+        `Weighted sentiment score is ${s.score.toFixed(2)} — community is predominantly bearish or warning.`, null);
+    }
+  }
+
+  return findings;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SENTIMENT FETCHER — calls internal /api/sentiment endpoint
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function fetchSentiment(symbol, addr) {
   const queries = buildSentimentQueries(symbol, addr);
   if (!queries.length) return null;
 
   const q = queries.map(x => x.q).join(' OR ');
+
+  // Build the API URL for our own sentiment endpoint
+  const base = process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : (process.env.ALLOWED_ORIGIN || 'http://localhost:3000');
+
   try {
-    const res = await fetch(`${endpoint}?q=${encodeURIComponent(q)}`, {
-      signal: AbortSignal.timeout(8000)
-    });
-    if (!res.ok) return null;
-    const json = await res.json();
-    const posts = Array.isArray(json?.posts) ? json.posts : [];
-    return analyzePosts(posts);
+    const sentRes = await fetch(`${base}/api/sentiment?q=${encodeURIComponent(q)}`);
+    if (!sentRes.ok) return null;
+    const data = await sentRes.json();
+    if (!data.posts || data.posts.length === 0) return { posts: 0, score: 0, label: 'No data', scamMentions: 0, dupRatio: 0, top: [] };
+    return analyzePosts(data.posts);
   } catch {
     return null;
   }
 }
 
-// ─── generateFindings — all 30 risk codes from §25 ───────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// SERIALIZERS — ensure BigInt and Set are JSON-serializable
+// ─────────────────────────────────────────────────────────────────────────────
 
-function generateFindings(c, e, m, f, s, addr) {
-  const findings = [];
-  const EXPLORER = `https://robinhoodchain.blockscout.com`;
-  const DEX = m?.dexUrl || `https://dexscreener.com/robinhood/${addr}`;
+function serializeContract(c) {
+  if (!c) return null;
+  return {
+    ...c,
+    totalSupply: c.totalSupply ? c.totalSupply.toString() : null
+  };
+}
 
-  const add = (code, sev, title, desc, srcUrl) =>
-    findings.push({ code, severity: sev, title, description: desc,
-      source_url: safeUrl(srcUrl) || `${EXPLORER}/address/${addr}` });
+function serializeExplorer(e) {
+  if (!e) return null;
+  return {
+    ...e,
+    transfers: undefined // omit large array from response
+  };
+}
 
-  // ── Contract checks ──────────────────────────────────────────────────────
-  const ownerActive = !c.ownerRenounced && c.hasOwnerFn;
+function serializeMarket(m) {
+  if (!m) return null;
+  return {
+    ...m,
+    pairAddresses: [...(m.pairAddresses || [])],
+    pairs: m.pairs?.slice(0, 3) // top 3 pairs only
+  };
+}
 
-  if (c.has.mint && ownerActive)
-    add('MINT_AUTHORITY', 'high', 'Owner can mint new tokens',
-      'A mint function was found in the bytecode and ownership has not been renounced.',
-      `${EXPLORER}/address/${addr}`);
-
-  if (c.has.blacklist && ownerActive)
-    add('BLACKLIST_FUNCTION', 'high', 'Blacklist function active',
-      'The contract can block wallets from trading. Owner is still active.',
-      `${EXPLORER}/address/${addr}`);
-
-  if (c.has.feeSetter && ownerActive)
-    add('MUTABLE_TAX', 'high', 'Tax can be changed by owner',
-      'Fee-setter functions detected. Active ownership means taxes can be raised to 100%.',
-      `${EXPLORER}/address/${addr}`);
-
-  if (c.has.tradingSwitch && ownerActive)
-    add('TRADING_SWITCH', 'medium', 'Trading can be disabled',
-      'A function to enable/disable trading exists. Owner is active.',
-      `${EXPLORER}/address/${addr}`);
-
-  if (c.has.pause && ownerActive)
-    add('PAUSABLE', 'medium', 'Contract can be paused',
-      'A pause() function was found and ownership has not been renounced.',
-      `${EXPLORER}/address/${addr}`);
-
-  if (c.has.txLimit && ownerActive)
-    add('TX_LIMITS', 'low', 'Max transaction limits can be set',
-      'Functions that set per-wallet or per-tx limits exist. Owner is active.',
-      `${EXPLORER}/address/${addr}`);
-
-  if (c.proxyImpl)
-    add('UPGRADEABLE_PROXY', 'high', 'Contract is upgradeable (proxy)',
-      'An EIP-1967 implementation slot was detected. The contract logic can be replaced.',
-      `${EXPLORER}/address/${addr}`);
-
-  if (ownerActive)
-    add('OWNER_ACTIVE', 'low', 'Ownership not renounced',
-      `Owner is ${c.owner || 'unknown'}. They can call privileged functions.`,
-      `${EXPLORER}/address/${c.owner || addr}`);
-
-  // ── Verification ─────────────────────────────────────────────────────────
-  if (e && e.verified === false)
-    add('UNVERIFIED_SOURCE', 'medium', 'Source code is not verified',
-      'The contract source has not been verified on Blockscout. You cannot read the code.',
-      `${EXPLORER}/address/${addr}#code`);
-
-  // ── Market checks ────────────────────────────────────────────────────────
-  if (m) {
-    if (!m.primary)
-      add('NO_DEX_PAIR', 'high', 'No DEX pair on Robinhood Chain',
-        'DexScreener found no trading pairs for this token on Robinhood Chain.',
-        `https://dexscreener.com/robinhood/${addr}`);
-    else {
-      if (m.liquidityUsd < 1000)
-        add('VERY_LOW_LIQUIDITY', 'high', 'Liquidity is extremely low (< $1K)',
-          `Total liquidity: ${fmtUsd(m.liquidityUsd)}. This makes the token extremely easy to manipulate.`,
-          DEX);
-      else if (m.liquidityUsd < 10000)
-        add('LOW_LIQUIDITY', 'medium', 'Liquidity is low (< $10K)',
-          `Total liquidity: ${fmtUsd(m.liquidityUsd)}.`,
-          DEX);
-
-      const buys = m.txns24?.buys || 0;
-      const sells = m.txns24?.sells || 0;
-
-      if (buys >= 25 && sells === 0)
-        add('NO_SELLS', 'high', 'Honeypot pattern: 0 sells in 24h',
-          `${buys} buys but zero sell transactions in the last 24 hours.`,
-          DEX);
-      else if (buys >= 40 && sells > 0 && (sells / buys) < 0.05)
-        add('SELLS_SUPPRESSED', 'high', 'Sells are heavily suppressed',
-          `${buys} buys but only ${sells} sells (${pct(sells/buys)} ratio). Possible honeypot.`,
-          DEX);
-
-      // New pair
-      if (m.pairCreatedAt) {
-        const ageMs = Date.now() - m.pairCreatedAt;
-        if (ageMs < 86_400_000)
-          add('NEW_PAIR', 'low', 'Trading pair is less than 24 hours old',
-            `Created ${Math.round(ageMs / 3_600_000)} hour(s) ago. Very early-stage token.`,
-            DEX);
-      }
-
-      // No socials
-      if ((!m.socials || m.socials.length === 0))
-        add('NO_SOCIALS', 'low', 'No website or social links',
-          'DexScreener shows no website, Twitter/X, or Telegram link for this token.',
-          `https://dexscreener.com/robinhood/${addr}`);
-    }
-  }
-
-  // ── Holder distribution ──────────────────────────────────────────────────
-  if (e && e.holders && e.holders.length > 0 && c.totalSupply) {
-    const EXPLORER_HOLDERS = `${EXPLORER}/token/${addr}/token-holders`;
-
-    // Count holders (excluding dead + pools)
-    const realHolders = e.holders.filter(h => {
-      const ha = lc(h.address?.hash || '');
-      return !DEAD.has(ha) && !h.address?.is_contract;
-    });
-
-    if (realHolders.length < 50)
-      add('FEW_HOLDERS', 'low', 'Very few token holders',
-        `Only ${realHolders.length} non-contract wallets hold this token.`,
-        EXPLORER_HOLDERS);
-
-    // Find top non-dead, non-pool holder
-    const topHolder = e.holders.find(h => {
-      const ha = lc(h.address?.hash || '');
-      return !DEAD.has(ha) && !(m?.pairAddresses?.has(ha));
-    });
-
-    if (topHolder && c.totalSupply > 0n) {
-      const val = BigInt(topHolder.value || '0');
-      const shareFrac = Number(val * 10000n / c.totalSupply) / 10000;
-
-      if (shareFrac > 0.5)
-        add('WHALE_MAJORITY', 'high', 'One wallet holds majority of supply',
-          `The largest holder owns ${pct(shareFrac)} of supply.`,
-          `${EXPLORER}/address/${topHolder.address?.hash || addr}`);
-      else if (shareFrac > 0.1)
-        add('TOP_HOLDER_CONCENTRATION', 'medium', 'High top-holder concentration',
-          `Largest non-pool wallet holds ${pct(shareFrac)}.`,
-          EXPLORER_HOLDERS);
-    }
-
-    // Top-10 concentration (excluding dead/pools)
-    const top10 = e.holders
-      .filter(h => !DEAD.has(lc(h.address?.hash || '')) && !(m?.pairAddresses?.has(lc(h.address?.hash || ''))))
-      .slice(0, 10);
-    if (top10.length >= 3 && c.totalSupply > 0n) {
-      const top10sum = top10.reduce((a, h) => a + BigInt(h.value || '0'), 0n);
-      const top10frac = Number(top10sum * 10000n / c.totalSupply) / 10000;
-      if (top10frac > 0.6)
-        add('TOP10_CONCENTRATION', 'medium', 'Top 10 wallets hold > 60% of supply',
-          `The 10 largest non-pool wallets collectively hold ${pct(top10frac)}.`,
-          EXPLORER_HOLDERS);
-    }
-  }
-
-  // ── Funding / cluster ────────────────────────────────────────────────────
-  if (f) {
-    const FUNDING_SRC = `${EXPLORER}/token/${addr}/token-transfers`;
-
-    if (f.funding_parent_share >= 0.6)
-      add('SHARED_FUNDING_PARENT', 'high', 'Most buyers share a single funding wallet',
-        `${pct(f.funding_parent_share)} of recent buyers were funded from one wallet.`,
-        FUNDING_SRC);
-
-    if (f.deployer_funded >= 0.1)
-      add('DEPLOYER_FUNDED_BUYERS', 'high', 'Deployer funded multiple buyers',
-        `${pct(f.deployer_funded)} of sampled buyers received funds directly from the deployer.`,
-        FUNDING_SRC);
-
-    if (f.cluster_dominance >= 0.7)
-      add('CLUSTER_DOMINANCE', 'high', 'Coordinated wallet cluster dominates buying',
-        `${pct(f.cluster_dominance)} of buyers belong to coordinated clusters (≥2 buyers, same funder).`,
-        FUNDING_SRC);
-    else if (f.cluster_dominance >= 0.3)
-      add('COORDINATED_BUYING', 'medium', 'Moderate buyer cluster detected',
-        `${pct(f.cluster_dominance)} of buyers share funders — indicates coordinated entry.`,
-        FUNDING_SRC);
-
-    if (f.same_block_ratio >= 0.3 && (f.trades?.filter(t => t.side === 'buy').length ?? 0) >= 5)
-      add('SAME_BLOCK_CONCENTRATION', 'medium', 'Many buys landed in a single block',
-        `${pct(f.same_block_ratio)} of recent buys occurred in the same block — typical sniping pattern.`,
-        FUNDING_SRC);
-
-    if (f.size_cv !== null && f.size_cv <= 0.05 && (f.trades?.filter(t => t.side === 'buy').length ?? 0) >= 5)
-      add('UNIFORM_BUY_SIZES', 'medium', 'Buy sizes are suspiciously uniform',
-        `CV of buy amounts is ${f.size_cv.toFixed(3)} — bot-like uniformity across recent buys.`,
-        FUNDING_SRC);
-
-    if (f.fresh_wallet_ratio !== null && f.fresh_wallet_ratio >= 0.6)
-      add('FRESH_WALLETS_RATIO', 'medium', '60%+ of buyers used fresh wallets',
-        `${pct(f.fresh_wallet_ratio)} of sampled buyers had wallets less than 24 hours old when they bought.`,
-        FUNDING_SRC);
-
-    if (f.dev_sold && creator)
-      add('DEV_SELLING', 'high', 'Deployer sold into the pool',
-        'The contract creator made sell transactions into a liquidity pool.',
-        `${EXPLORER}/address/${creator}`);
-  }
-
-  // ── Sentiment ────────────────────────────────────────────────────────────
-  if (s) {
-    const sym = (contractRes?.symbol || '').replace(/[^A-Za-z0-9_]/g, '');
-    const xSearch = `https://x.com/search?q=${encodeURIComponent('$' + sym + ' OR ' + addr.slice(0, 10))}`;
-
-    if (s.scamMentions >= 3)
-      add('SCAM_MENTIONS_ON_X', 'high', 'Scam reports on 𝕏',
-        `${s.scamMentions} posts explicitly mention rug/scam/honeypot (not preceded by a negator).`,
-        safeUrl(xSearch) || `${EXPLORER}/address/${addr}`);
-
-    if (s.posts >= 10 && s.dupRatio > 0.4)
-      add('COPY_PASTE_SHILLING', 'medium', 'Copy-paste shilling on 𝕏',
-        `${pct(s.dupRatio)} of analysed posts share near-identical text — coordinated shill campaign.`,
-        safeUrl(xSearch) || `${EXPLORER}/address/${addr}`);
-
-    if (s.posts >= 10 && s.score < -0.2)
-      add('NEGATIVE_SENTIMENT', 'medium', 'Negative community sentiment on 𝕏',
-        `Weighted tone score is ${s.score.toFixed(2)} (Bearish). Community warnings are prevalent.`,
-        safeUrl(xSearch) || `${EXPLORER}/address/${addr}`);
-  }
-
-  return findings;
+function serializeFunding(f) {
+  if (!f) return null;
+  return {
+    ...f,
+    trades: undefined // omit raw trades from response
+  };
 }

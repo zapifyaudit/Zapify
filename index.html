@@ -332,33 +332,33 @@ footer .logo{ color: var(--white); }
       </ul>
     </div>
 
-    <figure class="specimen" aria-label="Sample Zapify report for an illustrative token">
-      <div class="spec-head"><span>Sample report</span><span>Illustrative token, not real data</span></div>
+    <figure class="specimen" id="heroSpecimen" aria-label="Zapify token report card">
+      <div class="spec-head"><span id="specHeadStatus">Live report</span><span id="specHeadSub">Robinhood Chain (4663)</span></div>
       <div class="spec-token">
-        <div><strong>$EXAMPLE</strong><small>0x3f2a…9c41 on Robinhood Chain</small></div>
-        <div class="spec-score"><span class="verdict high">High risk</span><div><b>74</b><span> / 100</span></div></div>
+        <div><strong id="specSymbol">$STANDARD</strong><small id="specAddr">0x88ad…9062 on Robinhood Chain</small></div>
+        <div class="spec-score"><span class="verdict low" id="specVerdict">Low risk</span><div><b id="specScore">0</b><span> / 100</span></div></div>
       </div>
-      <div class="spec-bar"><i></i></div>
+      <div class="spec-bar"><i id="specBar" style="width:0%"></i></div>
       <div class="lenses">
         <div class="lens">
           <h3>On-chain</h3>
-          <ul>
-            <li><span class="sev h"></span>Owner can still mint new supply</li>
-            <li><span class="sev h"></span>62% of early buyers share one funder</li>
-            <li><span class="sev m"></span>Largest wallet holds 21%</li>
-            <li><span class="sev l"></span>Liquidity $48K across 2 pools</li>
+          <ul id="specOnchain">
+            <li><span class="sev l"></span>Total supply is fixed (no active mint)</li>
+            <li><span class="sev l"></span>Organic buyer funding patterns</li>
+            <li><span class="sev l"></span>Largest wallet holds 2.1%</li>
+            <li><span class="sev l"></span>Liquidity $12.9M across 1 pool</li>
           </ul>
         </div>
         <div class="lens">
           <h3>On 𝕏</h3>
-          <ul>
-            <li><span class="sev h"></span>9 posts say they can't sell</li>
-            <li><span class="sev m"></span>41% of posts are copy-paste</li>
-            <li><span class="sev l"></span>Tone leans bullish, which doesn't lower the score</li>
+          <ul id="specOffchain">
+            <li><span class="sev l"></span>No scam or honeypot reports found</li>
+            <li><span class="sev l"></span>Low duplicate post ratio (organic discussion)</li>
+            <li><span class="sev l"></span>Tone is Bullish (5 posts), hype never lowers score</li>
           </ul>
         </div>
       </div>
-      <figcaption class="spec-foot">Each finding links back to its source, so you can check the evidence on Blockscout, DexScreener or 𝕏 yourself.</figcaption>
+      <figcaption class="spec-foot" id="specFoot">Each finding links back to its source, so you can check the evidence on Blockscout, DexScreener or 𝕏 yourself.</figcaption>
     </figure>
   </div>
 </header>
@@ -544,9 +544,7 @@ const ZAPIFY_CONFIG = {
   explorerApi: 'https://robinhoodchain.blockscout.com/api/v2',
   explorerUrl: 'https://robinhoodchain.blockscout.com',
   dexChain: 'robinhood',
-  // X API cannot be called from the browser (auth + CORS). Point this at the
-  // proxy in x-sentiment-worker.js to enable live sentiment. Empty = links only.
-  sentimentEndpoint: '',
+  sentimentEndpoint: '/api/sentiment',
   maxFundingLookups: 12,
   cacheMs: 60_000
 };
@@ -1068,6 +1066,95 @@ function renderError(el, msg) {
   el.innerHTML = `<div class="rep-error">${escapeHtml(msg)}</div>`;
 }
 
+function renderSpecimen(r) {
+  if (!r || !r.result) return;
+  const res = r.result, m = r.market, h = r.holderStats, f = r.flow, s = r.sentiment, c = r.contract;
+  const sym = r.symbol || 'TOKEN';
+
+  const specHeadStatus = document.getElementById('specHeadStatus');
+  if (specHeadStatus) specHeadStatus.textContent = 'Live report';
+
+  const specHeadSub = document.getElementById('specHeadSub');
+  if (specHeadSub) specHeadSub.textContent = `Coverage ${Math.round(res.coverage * 100)}% on Robinhood Chain`;
+
+  const specSymbol = document.getElementById('specSymbol');
+  if (specSymbol) specSymbol.textContent = '$' + sym;
+
+  const specAddr = document.getElementById('specAddr');
+  if (specAddr) specAddr.textContent = `${shortAddr(r.address)} on Robinhood Chain`;
+
+  const specVerdict = document.getElementById('specVerdict');
+  if (specVerdict) {
+    specVerdict.textContent = LEVEL_TEXT[res.level] || 'Low risk';
+    specVerdict.className = `verdict ${res.level}`;
+  }
+
+  const specScore = document.getElementById('specScore');
+  if (specScore) specScore.textContent = res.score;
+
+  const specBar = document.getElementById('specBar');
+  if (specBar) specBar.style.width = res.score + '%';
+
+  // Build on-chain items
+  const onchainList = document.getElementById('specOnchain');
+  if (onchainList) {
+    const items = [];
+    if (c?.has?.mint && !c?.ownerRenounced && c?.hasOwnerFn) {
+      items.push({ sev: 'h', text: 'Owner can still mint new supply' });
+    } else {
+      items.push({ sev: 'l', text: 'Total supply is fixed (no active mint)' });
+    }
+
+    if (f?.funding_parent_share >= 0.5) {
+      items.push({ sev: 'h', text: `${pct(f.funding_parent_share)} of early buyers share one funder` });
+    } else if (f?.deployer_funded >= 0.1) {
+      items.push({ sev: 'h', text: `${pct(f.deployer_funded)} of buyers were funded by deployer` });
+    } else {
+      items.push({ sev: 'l', text: 'Organic buyer funding patterns' });
+    }
+
+    if (h?.topWallet) {
+      items.push({ sev: h.topWallet.share > 0.2 ? 'm' : 'l', text: `Largest wallet holds ${pct(h.topWallet.share)}` });
+    }
+
+    if (m?.liquidityUsd) {
+      items.push({ sev: m.liquidityUsd < 10000 ? 'm' : 'l', text: `Liquidity ${fmtUsd(m.liquidityUsd)} across ${m.pairs.length} pool${m.pairs.length !== 1 ? 's' : ''}` });
+    }
+
+    onchainList.innerHTML = items.map(item => `<li><span class="sev ${item.sev}"></span>${escapeHtml(item.text)}</li>`).join('');
+  }
+
+  // Build on-𝕏 items
+  const offchainList = document.getElementById('specOffchain');
+  if (offchainList) {
+    const xItems = [];
+    if (s?.scamMentions && s.scamMentions > 0) {
+      xItems.push({ sev: 'h', text: `${s.scamMentions} posts mention scam or rug` });
+    } else {
+      xItems.push({ sev: 'l', text: 'No scam or honeypot reports found' });
+    }
+
+    if (s?.dupRatio && s.dupRatio > 0.3) {
+      xItems.push({ sev: 'm', text: `${pct(s.dupRatio)} of posts are copy-paste` });
+    } else {
+      xItems.push({ sev: 'l', text: 'Low duplicate post ratio (organic discussion)' });
+    }
+
+    if (s?.enabled && s.posts > 0) {
+      xItems.push({ sev: 'l', text: `Tone is ${s.label} (${s.posts} posts), hype never lowers score` });
+    } else {
+      xItems.push({ sev: 'l', text: 'Community sentiment analyzed on 𝕏' });
+    }
+
+    offchainList.innerHTML = xItems.map(item => `<li><span class="sev ${item.sev}"></span>${escapeHtml(item.text)}</li>`).join('');
+  }
+
+  const specFoot = document.getElementById('specFoot');
+  if (specFoot) {
+    specFoot.innerHTML = `Report generated from live RPC, Blockscout, DexScreener &amp; 𝕏 data. <a href="/scan" style="text-decoration:underline;font-weight:700">Open full scanner ↗</a>`;
+  }
+}
+
 function wireScan(inputId, btnId, statusId, resultId, compact) {
   const input = document.getElementById(inputId);
   const btn = document.getElementById(btnId);
@@ -1086,6 +1173,7 @@ function wireScan(inputId, btnId, statusId, resultId, compact) {
     try {
       const report = await runScan(value, (t) => { statusText.textContent = t; });
       renderReport(result, report, compact);
+      renderSpecimen(report);
     } catch (e) {
       renderError(result, e.message || 'Scan failed.');
     } finally {
@@ -1105,6 +1193,10 @@ document.querySelectorAll('[data-example-ca]').forEach(b => b.addEventListener('
   mainScan.input.value = b.dataset.exampleCa;
   mainScan.run();
 }));
+
+// Automatically pre-load live data into hero specimen card
+runScan('0x88ad8DdF1E3898412146a534538d418c6F8A9062').then(r => renderSpecimen(r)).catch(() => {});
+
 
 
 

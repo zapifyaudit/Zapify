@@ -33,12 +33,14 @@ ul{ list-style:none; }
 .sr-only{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
 
 .btn{ display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:14px 22px; border-radius: var(--r-sm); font-size:15px; font-weight:700; border:1.5px solid var(--ink); white-space:nowrap; cursor:pointer; background: var(--white); transition: transform .15s var(--ease), background .15s; }
-.btn-lime{ background: var(--lime); }
+.btn-lime{ background: var(--lime); color: var(--ink); }
 .btn-lime:hover{ transform: translate(-2px,-2px); box-shadow: 2px 2px 0 var(--ink); }
 .btn-ink{ background: var(--ink); color: var(--white); }
 .btn-ghost{ border-color: var(--line); }
 .btn-ghost:hover{ border-color: var(--ink); }
 .btn-sm{ padding:9px 14px; font-size:14px; }
+#rescan{ background: var(--lime); color: var(--ink); font-weight:700; }
+#rescan:hover{ transform: translate(-2px,-2px); box-shadow: 2px 2px 0 var(--white); background: #d4ff1a; }
 .btn:disabled{ opacity:.55; cursor:progress; transform:none; box-shadow:none; }
 .chip{ display:inline-flex; align-items:center; gap:7px; font-size:13px; font-weight:600; padding:5px 11px; border-radius:99px; background: var(--white); border:1px solid var(--line); white-space:nowrap; }
 button.chip{ cursor:pointer; }
@@ -335,6 +337,8 @@ body[data-state="result"] .rise{ animation: rise .5s var(--ease) both; }
 body[data-state="result"] .rise.d2{ animation-delay:.12s; }
 @keyframes rise{ from{ opacity:0; transform: translateY(10px); } }
 
+
+
 footer{ background: var(--ink); color: var(--gray-text); padding:28px 0 92px; font-size:13.5px; }
 footer .wrap{ display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; }
 
@@ -385,9 +389,7 @@ footer .wrap{ display:flex; justify-content:space-between; gap:12px; flex-wrap:w
       <button class="btn btn-lime" id="scanBtn" type="submit">Scan token</button>
     </form>
     <div class="field-hint" id="hint">
-      <span>Try:</span>
-      <button type="button" class="chip" data-fill="0x716d3aea78a8e767b127ec0b2916dbbe7383a757"><span class="dot"></span>Try real token (0x716d…a757)</button>
-      <button type="button" class="chip" data-fill="0x0000000000000000000000000000000000000abc">An address with no contract</button>
+      <span>Paste a Robinhood Chain token contract address (0x…)</span>
     </div>
   </div>
 </section>
@@ -463,7 +465,7 @@ footer .wrap{ display:flex; justify-content:space-between; gap:12px; flex-wrap:w
       </ul>
       <div class="error-actions">
         <button type="button" class="btn btn-ink" id="errRetry">Edit the address</button>
-        <button type="button" class="btn btn-ghost" id="errBack">Try a different address</button>
+        <button type="button" class="btn btn-ghost" data-fill="0x7e57a1b2c3d4e5f60718293a4b5c6d7e8f901234">Scan the dummy token</button>
       </div>
     </div>
   </section>
@@ -471,44 +473,45 @@ footer .wrap{ display:flex; justify-content:space-between; gap:12px; flex-wrap:w
   <!-- ============ RESULT ============ -->
   <section data-view="result" aria-labelledby="token-title">
 
+
     <div class="verdict-card rise">
       <div class="vc-main">
         <div class="token-id">
-          <div class="avatar" aria-hidden="true">H</div>
+          <div class="avatar" id="tokenAvatar" aria-hidden="true">?</div>
           <div>
-            <h2 class="display" id="token-title">$HOPPY</h2>
-            <p class="name">Hoppy Frog, ERC-20, 18 decimals</p>
+            <h2 class="display" id="token-title">—</h2>
+            <p class="name" id="tokenName">—</p>
           </div>
         </div>
-        <div class="meta">
-          <button type="button" class="chip copy" data-copy="0x7e57a1b2c3d4e5f60718293a4b5c6d7e8f901234" aria-label="Copy contract address 0x7e57…1234">0x7e57…1234</button>
+        <div class="meta" id="tokenMeta">
+          <button type="button" class="chip copy" id="tokenAddrChip" data-copy="" aria-label="Copy contract address">—</button>
           <span class="chip"><span class="dot"></span>Robinhood Chain</span>
-          <span class="chip">Pair age 9h</span>
-          <span class="chip">Scanned 14:32</span>
+          <span class="chip" id="tokenPairAge"></span>
+          <span class="chip" id="tokenScannedAt"></span>
         </div>
-        <p class="summary">The contract itself is <strong>fairly clean</strong>. The buying isn't: <strong>8 of 12 recent buyers</strong> trace back to two wallets, and <strong>44% of the posts</strong> hyping it on 𝕏 are copy-paste.</p>
+        <p class="summary" id="tokenSummary"></p>
       </div>
       <div class="vc-side on-ink">
         <div>
-          <div class="score-top"><span class="verdict high">High risk</span><span>Risk score</span></div>
-          <div class="score-big"><span>78</span><small> / 100</small></div>
+          <div class="score-top"><span class="verdict" id="scoreVerdict">—</span><span>Risk score</span></div>
+          <div class="score-big"><span id="scoreValue">—</span><small> / 100</small></div>
         </div>
         <div class="meter" aria-hidden="true">
-          <div class="zones"><span></span><span></span><span class="on-high"></span></div>
+          <div class="zones"><span></span><span></span><span id="zoneHigh"></span></div>
           <div class="needle" id="needle" style="left:0%"></div>
           <div class="zone-labels"><span>Low 0–29</span><span>Caution 30–59</span><span>High 60–100</span></div>
         </div>
         <div class="coverage">
-          <span>Data coverage: 5 of 5 sources</span>
-          <span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+          <span id="coverageText">Data coverage: — of 5 sources</span>
+          <span class="dots" aria-hidden="true" id="coverageDots"></span>
         </div>
       </div>
     </div>
 
     <div class="disagree rise d2">
-      <div class="dg-side"><small>The contract says</small><p>Verified source, ownership renounced, no mint or blacklist switch.</p></div>
+      <div class="dg-side"><small>The contract says</small><p id="disagreeOnchain">—</p></div>
       <div class="dg-mid">but</div>
-      <div class="dg-side"><small>The buyers and the room say</small><p>A funded cluster is doing most of the buying, and part of the hype is scripted.</p></div>
+      <div class="dg-side"><small>The buyers and the room say</small><p id="disagreeOffchain">—</p></div>
     </div>
 
     <div class="block-head"><h2 class="display">Both lenses.</h2><span class="muted">Every panel has a matching entry in the findings.</span></div>
@@ -519,87 +522,72 @@ footer .wrap{ display:flex; justify-content:space-between; gap:12px; flex-wrap:w
 
         <div class="card">
           <h4>Hidden switches</h4>
-          <p class="sub">Powers written into the contract. A switch only matters while someone can still flip it.</p>
-          <div class="switches">
-            <div class="switch"><div class="sw-top"><b>Mint</b><span class="toggle" aria-hidden="true"></span></div><span>Not found</span></div>
-            <div class="switch"><div class="sw-top"><b>Blacklist</b><span class="toggle" aria-hidden="true"></span></div><span>Not found</span></div>
-            <div class="switch"><div class="sw-top"><b>Change tax</b><span class="toggle" aria-hidden="true"></span></div><span>Not found</span></div>
-            <div class="switch live"><div class="sw-top"><b>Max wallet</b><span class="toggle" aria-hidden="true"></span></div><span>Present, but locked by renounce</span></div>
-            <div class="switch"><div class="sw-top"><b>Pause</b><span class="toggle" aria-hidden="true"></span></div><span>Not found</span></div>
-            <div class="switch"><div class="sw-top"><b>Upgradeable</b><span class="toggle" aria-hidden="true"></span></div><span>No proxy</span></div>
+          <p class="sub" id="switchesSub">Powers written into the contract. A switch only matters while someone can still flip it.</p>
+          <div class="switches" id="switchGrid">
+            <div class="switch" id="switchMint"><div class="sw-top"><b>Mint</b><span class="toggle" aria-hidden="true"></span></div><span>—</span></div>
+            <div class="switch" id="switchBlacklist"><div class="sw-top"><b>Blacklist</b><span class="toggle" aria-hidden="true"></span></div><span>—</span></div>
+            <div class="switch" id="switchTax"><div class="sw-top"><b>Change tax</b><span class="toggle" aria-hidden="true"></span></div><span>—</span></div>
+            <div class="switch" id="switchMaxWallet"><div class="sw-top"><b>Max wallet</b><span class="toggle" aria-hidden="true"></span></div><span>—</span></div>
+            <div class="switch" id="switchPause"><div class="sw-top"><b>Pause</b><span class="toggle" aria-hidden="true"></span></div><span>—</span></div>
+            <div class="switch" id="switchUpgrade"><div class="sw-top"><b>Upgradeable</b><span class="toggle" aria-hidden="true"></span></div><span>—</span></div>
           </div>
-          <p class="owner-line">Ownership was renounced to 0x0000…dEaD, so no one can use these switches.</p>
+          <p class="owner-line" id="ownerLine">Checking ownership…</p>
         </div>
 
         <div class="card">
           <h4>Liquidity and sells</h4>
-          <p class="sub">Two Uniswap v4 pools on Robinhood Chain.</p>
+          <p class="sub" id="liquiditySub">Loading market data…</p>
           <div class="stats">
-            <div><span>Liquidity</span><b>$31.4K</b></div>
-            <div><span>Price</span><b>$0.00041</b></div>
-            <div><span>FDV</span><b>$410K</b></div>
-            <div><span>24h volume</span><b>$96.2K</b></div>
+            <div><span>Liquidity</span><b id="statLiquidity">—</b></div>
+            <div><span>Price</span><b id="statPrice">—</b></div>
+            <div><span>FDV</span><b id="statFdv">—</b></div>
+            <div><span>24h volume</span><b id="statVolume">—</b></div>
           </div>
-          <div class="flow">
-            <div class="flow-bar" role="img" aria-label="412 buys and 187 sells in the last 24 hours">
-              <span class="buy" style="width:69%">412 buys</span>
-              <span class="sell" style="width:31%">187 sells</span>
-            </div>
-            <small>Sells are going through, so there's no honeypot pattern in the last 24 hours.</small>
+          <div class="flow" id="flowSection">
+            <div class="flow-bar" id="flowBar" role="img" aria-label="Buy/sell ratio"></div>
+            <small id="flowNote"></small>
           </div>
         </div>
 
         <div class="card">
           <h4>Holder spread</h4>
-          <p class="sub">2,146 holders. Pools and burned tokens are shown separately.</p>
-          <div class="stack" role="img" aria-label="Supply: pools 38.5%, largest wallet 14.2%, wallets 2 to 10 21.6%, everyone else 24.9%, burned 0.8%">
-            <span class="c-pool" style="width:38.5%"></span>
-            <span class="c-top" style="width:14.2%"></span>
-            <span class="c-top10" style="width:21.6%"></span>
-            <span class="c-rest" style="width:24.9%"></span>
-            <span class="c-burn" style="width:0.8%"></span>
-          </div>
-          <ul class="legend">
-            <li><i class="c-pool"></i>Liquidity pools<b>38.5%</b></li>
-            <li><i class="c-top"></i>Largest wallet<b>14.2%</b></li>
-            <li><i class="c-top10"></i>Wallets 2 to 10<b>21.6%</b></li>
-            <li><i class="c-rest"></i>Everyone else<b>24.9%</b></li>
-            <li><i class="c-burn"></i>Burned<b>0.8%</b></li>
-          </ul>
+          <p class="sub" id="holderSub">Loading holder data…</p>
+          <div class="stack" id="holderStack" role="img" aria-label="Token supply distribution"></div>
+          <ul class="legend" id="holderLegend"></ul>
         </div>
 
         <div class="card">
           <h4>Funding clusters</h4>
-          <p class="sub">Where the 12 most recent buyers got their ETH before they bought.</p>
-          <div class="graph-wrap"><svg id="graph" viewBox="0 0 560 330" role="img" aria-label="Funding graph: one wallet funded 6 buyers, the deployer funded 2, and 4 buyers have separate funders."></svg></div>
+          <p class="sub" id="fundingSub">Where recent buyers got their funds before buying.</p>
+          <div class="graph-wrap"><svg id="graph" viewBox="0 0 560 330" role="img" aria-label="Funding cluster graph"></svg></div>
           <div class="g-legend">
             <span><i style="background:var(--danger)"></i>Shared funder</span>
             <span><i style="background:var(--ink)"></i>Funded by the deployer</span>
             <span><i style="background:#b5b5aa"></i>Independent</span>
           </div>
-          <div class="facts">
-            <div class="bad"><b>50%</b><span>of buyers share one funder</span></div>
-            <div class="bad"><b>17%</b><span>were funded by the deployer</span></div>
-            <div class="warn"><b>42%</b><span>of buys landed in one block</span></div>
+          <div class="facts" id="fundingFacts">
+            <div><b id="factParent">—</b><span>of buyers share one funder</span></div>
+            <div><b id="factDeployer">—</b><span>were funded by deployer</span></div>
+            <div><b id="factBlock">—</b><span>of buys in one block</span></div>
           </div>
         </div>
       </div>
 
       <div class="col x-col">
-        <div class="col-title"><h3>On 𝕏</h3><span>Last 24 hours</span></div>
+        <div class="col-title"><h3>On 𝕏</h3><span>Last 7 days</span></div>
 
         <div class="card">
           <h4>Weighted tone</h4>
-          <p class="sub">126 posts mention $HOPPY or its contract.</p>
-          <div class="tone-read"><b>+0.34</b><span class="muted">Leaning bullish</span></div>
-          <div class="tone-scale" role="img" aria-label="Tone +0.34 on a scale from bearish to bullish"><span class="tone-pin" id="tonePin" style="left:50%"></span></div>
+          <p class="sub" id="xToneSub">Loading X sentiment…</p>
+          <div class="tone-read"><b id="toneValue">—</b><span class="muted" id="toneLabel"></span></div>
+          <div class="tone-scale" role="img" id="toneScaleEl" aria-label="Sentiment scale"><span class="tone-pin" id="tonePin" style="left:50%"></span></div>
           <div class="tone-labels"><span>Bearish</span><span>Neutral</span><span>Bullish</span></div>
-          <p class="note"><b>This doesn't lower the score.</b> Excitement isn't evidence that a token is safe.</p>
+          <p class="note"><b>Hype never lowers your score.</b> Excitement isn't evidence that a token is safe.</p>
         </div>
 
         <div class="card">
           <h4>Post volume</h4>
-          <p class="sub">Posts per hour. The red bar is a burst of identical posts.</p>
+          <p class="sub" id="hoursSub">Posts per hour (last 24h). Red bar = burst of identical posts.</p>
           <div class="hours" id="hours" aria-hidden="true"></div>
           <div class="hours-axis"><span>24h ago</span><span>12h ago</span><span>Now</span></div>
         </div>
@@ -607,91 +595,42 @@ footer .wrap{ display:flex; justify-content:space-between; gap:12px; flex-wrap:w
         <div class="card">
           <h4>Shill filter and scam trail</h4>
           <p class="sub">Signals that change how much each post counts.</p>
-          <div class="facts">
-            <div class="warn"><b>44%</b><span>Copy-paste posts</span></div>
-            <div><b>61%</b><span>From accounts under 50 followers</span></div>
-            <div><b>1</b><span>Post calling it a rug or scam</span></div>
-            <div><b>0</b><span>Posts saying they can't sell</span></div>
+          <div class="facts x-col" id="xShillFacts">
+            <div><b id="xDupPct">—</b><span>Copy-paste posts</span></div>
+            <div><b id="xScamCount">—</b><span>Posts calling it a rug or scam</span></div>
           </div>
         </div>
 
         <div class="card">
           <h4>Posts that carried the most weight</h4>
-          <p class="sub">Handles are placeholders in this preview.</p>
-          <div class="posts">
-            <article class="post">
-              <div class="post-head"><span class="pfp">A</span><span><b>@user_a1</b><span class="muted">18.2K followers</span></span><span class="tag pos">Bullish</span></div>
-              <p>$HOPPY chart looks clean, LP is solid and the contract is renounced. Holding a bag.</p>
-              <div class="foot"><span>412 likes</span><span>58 reposts</span><span>2h ago</span></div>
-            </article>
-            <article class="post">
-              <div class="post-head"><span class="pfp">B</span><span><b>@user_b2</b><span class="muted">6.9K followers</span></span><span class="tag neg">Warning</span></div>
-              <p>Looked at the $HOPPY buyers. A lot of them were funded from the same wallet an hour before launch. Careful.</p>
-              <div class="foot"><span>231 likes</span><span>40 reposts</span><span>5h ago</span></div>
-            </article>
-            <article class="post dup">
-              <div class="post-head"><span class="pfp">C</span><span><b>@user_c3</b><span class="muted">12 followers</span></span><span class="tag dup">Posted 38 times</span></div>
-              <p>$HOPPY is the next 100x gem on Robinhood Chain, LFG 🐸🚀</p>
-              <div class="foot"><span>2 likes</span><span>Weight reduced</span></div>
-            </article>
-          </div>
+          <p class="sub" id="xPostsSub">Top posts by engagement and relevance.</p>
+          <div class="posts" id="xPosts"></div>
+          <div style="margin-top:12px;font-size:13px;" id="xSearchLinks"></div>
         </div>
       </div>
     </div>
 
     <div class="block-head" id="findings">
       <h2 class="display">Findings.</h2>
-      <div class="filter" role="group" aria-label="Filter findings">
-        <button type="button" aria-pressed="true" data-filter="all">All 12</button>
-        <button type="button" aria-pressed="false" data-filter="high">High 2</button>
-        <button type="button" aria-pressed="false" data-filter="medium">Medium 3</button>
-        <button type="button" aria-pressed="false" data-filter="low">Low 1</button>
-        <button type="button" aria-pressed="false" data-filter="pass">Passed 6</button>
+      <div class="filter" role="group" aria-label="Filter findings" id="findingFilter">
+        <button type="button" aria-pressed="true" data-filter="all">All —</button>
+        <button type="button" aria-pressed="false" data-filter="high">High —</button>
+        <button type="button" aria-pressed="false" data-filter="medium">Medium —</button>
+        <button type="button" aria-pressed="false" data-filter="low">Low —</button>
+        <button type="button" aria-pressed="false" data-filter="pass">Passed —</button>
       </div>
     </div>
-    <div class="findings" id="findingList">
-      <div class="finding" data-sev="high"><span class="sev-tag high">High</span><div class="txt"><b>Half of recent buyers share one funding wallet</b><span>6 of 12 buyers were funded by 0x9a1f…c20e within an hour of buying.</span></div><a class="src" href="#">Blockscout ↗</a></div>
-      <div class="finding" data-sev="high"><span class="sev-tag high">High</span><div class="txt"><b>The deployer funded 2 buyers</b><span>17% of sampled buyers got their ETH from the deployer wallet.</span></div><a class="src" href="#">Blockscout ↗</a></div>
-      <div class="finding" data-sev="medium"><span class="sev-tag medium">Medium</span><div class="txt"><b>One wallet holds 14.2% of supply</b><span>It isn't a pool, a locker or a burn address.</span></div><a class="src" href="#">Holders ↗</a></div>
-      <div class="finding" data-sev="medium"><span class="sev-tag medium">Medium</span><div class="txt"><b>42% of recent buys landed in a single block</b><span>A common sniper pattern.</span></div><a class="src" href="#">Transfers ↗</a></div>
-      <div class="finding" data-sev="medium"><span class="sev-tag medium">Medium</span><div class="txt"><b>44% of posts are duplicated text</b><span>One message was posted 38 times from low-follower accounts.</span></div><a class="src" href="#">𝕏 search ↗</a></div>
-      <div class="finding" data-sev="low"><span class="sev-tag low">Low</span><div class="txt"><b>The pair is less than 24 hours old</b><span>Created 9 hours ago.</span></div><a class="src" href="#">DexScreener ↗</a></div>
-      <div class="finding pass" data-sev="pass"><span class="sev-tag pass">Passed</span><div class="txt"><b>Source code is verified</b></div><a class="src" href="#">Contract ↗</a></div>
-      <div class="finding pass" data-sev="pass"><span class="sev-tag pass">Passed</span><div class="txt"><b>Ownership is renounced</b></div><a class="src" href="#">Contract ↗</a></div>
-      <div class="finding pass" data-sev="pass"><span class="sev-tag pass">Passed</span><div class="txt"><b>No mint, blacklist, tax or pause switch</b></div><a class="src" href="#">Contract ↗</a></div>
-      <div class="finding pass" data-sev="pass"><span class="sev-tag pass">Passed</span><div class="txt"><b>Sells are going through</b><span>187 sells against 412 buys in 24 hours.</span></div><a class="src" href="#">DexScreener ↗</a></div>
-      <div class="finding pass" data-sev="pass"><span class="sev-tag pass">Passed</span><div class="txt"><b>Liquidity is above $10K</b></div><a class="src" href="#">DexScreener ↗</a></div>
-      <div class="finding pass" data-sev="pass"><span class="sev-tag pass">Passed</span><div class="txt"><b>Few scam reports on 𝕏</b><span>1 post, below the threshold of 3.</span></div><a class="src" href="#">𝕏 search ↗</a></div>
-    </div>
+    <div class="findings" id="findingList"></div>
 
-    <div class="block-head"><h2 class="display">How we got to 78.</h2><span class="muted">Each flag adds weight. Passed checks add nothing.</span></div>
+    <div class="block-head"><h2 class="display">Breakdown.</h2><span class="muted">How the score is added up</span></div>
     <div class="breakdown">
-      <div class="bk-bar" role="img" aria-label="Weights: 5, 5, 4, 3, 3 and 1, totalling 21">
-        <span class="h" style="width:23.8%">+5</span>
-        <span class="h" style="width:23.8%">+5</span>
-        <span class="m" style="width:19%">+4</span>
-        <span class="m" style="width:14.3%">+3</span>
-        <span class="m" style="width:14.3%">+3</span>
-        <span class="l" style="width:4.8%">+1</span>
-      </div>
-      <ul class="bk-list">
-        <li><span>Shared funding wallet</span><b>+5</b></li>
-        <li><span>Deployer-funded buyers</span><b>+5</b></li>
-        <li><span>Top holder concentration</span><b>+4</b></li>
-        <li><span>Same-block buying</span><b>+3</b></li>
-        <li><span>Copy-paste posts</span><b>+3</b></li>
-        <li><span>New pair</span><b>+1</b></li>
-      </ul>
-      <p class="formula">Total weight <b>21</b>. Score = 100 × (1 − e<sup>−21/14</sup>) = <b>78</b>, which falls in the high-risk band.</p>
+      <div class="bk-bar" role="img" id="bkBar" aria-label="Risk severity breakdown"></div>
+      <ul class="bk-list" id="bkList"></ul>
+      <p class="formula" id="bkFormula"></p>
     </div>
 
-    <div class="block-head"><h2 class="display">Check it yourself.</h2></div>
-    <div class="evidence">
-      <a href="#"><b>Blockscout ↗</b><span>Contract, holders and transfers</span></a>
-      <a href="#"><b>DexScreener ↗</b><span>Pools, price and trades</span></a>
-      <a href="#"><b>𝕏: $HOPPY ↗</b><span>Live cashtag search</span></a>
-      <a href="#"><b>𝕏: contract ↗</b><span>Posts quoting the address</span></a>
-    </div>
+    <div class="block-head"><h2 class="display">Evidence.</h2><span class="muted">Check the data yourself</span></div>
+    <div class="evidence" id="evidenceLinks"></div>
 
     <div class="closing on-ink">
       <span><b>A second opinion, not financial advice.</b> Owners, holders and liquidity can change after this scan.</span>
@@ -706,176 +645,6 @@ footer .wrap{ display:flex; justify-content:space-between; gap:12px; flex-wrap:w
   <div class="wrap"><span>© 2026 Zapify</span><span>Not financial advice. Always verify on-chain.</span></div>
 </footer>
 
-
-
 <script src="/app.js" defer></script>
-<!--
-const $ = (s) => document.querySelector(s);
-const $$ = (s) => [...document.querySelectorAll(s)];
-const DUMMY = '0x7e57a1b2c3d4e5f60718293a4b5c6d7e8f901234';
-const NO_CONTRACT = '0x0000000000000000000000000000000000000abc';
-const input = $('#addr');
-const scanBtn = $('#scanBtn');
-const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-let timers = [];
-const later = (fn, ms) => timers.push(setTimeout(fn, reduce ? Math.min(ms, 150) : ms));
-const clearTimers = () => { timers.forEach(clearTimeout); timers = []; };
-
-function setState(state) {
-  clearTimers();
-  document.body.dataset.state = state;
-  $$('.preview button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.set === state)));
-  scanBtn.disabled = state === 'scanning';
-  if (state === 'result') animateResult();
-  window.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' });
-}
-
-/* ---- scanning sequence ---- */
-const LOG = [
-  ['Contract', 'Read 14.2 KB of bytecode, no proxy slot set'],
-  ['Contract', 'owner() returns 0x0000…dEaD, so ownership is renounced'],
-  ['Explorer', 'Source verified, 2,146 holders'],
-  ['Market', 'Found 2 pools with $31.4K liquidity'],
-  ['Buyer funding', 'Traced 12 buyers, 6 share funder 0x9a1f…c20e'],
-  ['Sentiment', 'Found 126 posts, 44% duplicated'],
-  ['Score', 'Total weight 21, score 78']
-];
-function runScan(addr, outcome) {
-  setState('scanning');
-  $('#scanTarget').textContent = addr;
-  const steps = $$('#steps li');
-  steps.forEach(li => { li.className = ''; li.querySelector('.ms').textContent = 'waiting'; });
-  $('#bigbar').style.width = '0%';
-  $('#pct').textContent = '0% complete';
-  $('#log').innerHTML = '';
-
-  if (outcome === 'nocontract') {
-    steps[0].className = 'active';
-    steps[0].querySelector('.ms').textContent = 'reading';
-    later(() => showError('nocontract', addr), 1300);
-    return;
-  }
-  const durations = [520, 480, 420, 900, 700];
-  let t = 150;
-  steps.forEach((li, i) => {
-    later(() => { li.className = 'active'; li.querySelector('.ms').textContent = 'reading'; }, t);
-    t += durations[i];
-    later(() => {
-      li.className = 'done';
-      li.querySelector('.ms').textContent = (durations[i] / 1000).toFixed(2) + 's';
-      const p = Math.round(((i + 1) / steps.length) * 100);
-      $('#bigbar').style.width = p + '%';
-      $('#pct').textContent = p + '% complete';
-    }, t);
-  });
-  LOG.forEach(([k, v], i) => later(() => {
-    const p = document.createElement('p');
-    const b = document.createElement('b'); b.textContent = k;
-    p.append(b, v);
-    $('#log').appendChild(p);
-    $('#log').scrollTop = $('#log').scrollHeight;
-  }, 300 + i * 470));
-  later(() => setState('result'), t + 450);
-}
-
-/* ---- result ---- */
-function animateResult() {
-  const needle = $('#needle'), pin = $('#tonePin');
-  needle.style.transition = pin.style.transition = 'none';
-  needle.style.left = '0%'; pin.style.left = '50%';
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    needle.style.transition = pin.style.transition = '';
-    needle.style.left = '78%';
-    pin.style.left = (50 + 0.34 * 50) + '%';
-  }));
-}
-
-const HOURS = [1,0,2,1,1,3,2,4,3,5,4,6,5,7,6,9,8,31,12,10,9,11,8,7];
-const peak = Math.max(...HOURS);
-$('#hours').innerHTML = HOURS.map(v => `<i class="${v === peak ? 'spike' : ''}" style="height:${Math.max(4, v / peak * 100)}%"></i>`).join('');
-
-(function drawGraph() {
-  const svg = $('#graph');
-  const NS = 'http://www.w3.org/2000/svg';
-  const el = (tag, attrs, text) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (text) e.textContent = text; svg.appendChild(e); return e; };
-  const RED = '#c8102e', INK = '#0d0d0a', GREY = '#b5b5aa', LIME = '#ccff00', MUTED = '#5e5e55';
-  const txt = { 'font-family': 'Archivo, Helvetica, Arial, sans-serif' };
-  const buyers = Array.from({ length: 12 }, (_, i) => ({ x: 480, y: 30 + i * 25 }));
-  const hub = { x: 130, y: 105 }, dev = { x: 130, y: 232 };
-  const indep = [0, 1, 2, 3].map(i => ({ x: 345, y: 235 + i * 25 }));
-  const curve = (a, b) => `M${a.x},${a.y} C${(a.x + b.x) / 2},${a.y} ${(a.x + b.x) / 2},${b.y} ${b.x},${b.y}`;
-  buyers.slice(0, 6).forEach(b => el('path', { d: curve(hub, b), stroke: RED, 'stroke-width': 2, fill: 'none' }));
-  buyers.slice(6, 8).forEach(b => el('path', { d: curve(dev, b), stroke: INK, 'stroke-width': 2, fill: 'none', 'stroke-dasharray': '5 4' }));
-  buyers.slice(8).forEach((b, i) => el('path', { d: curve(indep[i], b), stroke: GREY, 'stroke-width': 1.5, fill: 'none' }));
-  indep.forEach(p => el('circle', { cx: p.x, cy: p.y, r: 5, fill: GREY }));
-  buyers.forEach((b, i) => el('circle', { cx: b.x, cy: b.y, r: 8, fill: i < 6 ? RED : i < 8 ? INK : '#fff', stroke: INK, 'stroke-width': 1.5 }));
-  el('text', { ...txt, x: 500, y: 34, 'font-size': 12, fill: MUTED }, 'Buyers');
-  el('circle', { cx: hub.x, cy: hub.y, r: 24, fill: RED, stroke: INK, 'stroke-width': 1.5 });
-  el('text', { ...txt, x: hub.x, y: hub.y + 6, 'text-anchor': 'middle', 'font-size': 17, 'font-weight': 800, fill: '#fff' }, '6');
-  el('text', { ...txt, x: 30, y: 52, 'font-size': 14, 'font-weight': 700, fill: INK }, 'Shared funder');
-  el('text', { ...txt, x: 30, y: 68, 'font-size': 12, fill: MUTED }, '0x9a1f…c20e');
-  el('rect', { x: dev.x - 24, y: dev.y - 24, width: 48, height: 48, rx: 12, fill: LIME, stroke: INK, 'stroke-width': 1.5 });
-  el('text', { ...txt, x: dev.x, y: dev.y + 6, 'text-anchor': 'middle', 'font-size': 17, 'font-weight': 800, fill: INK }, '2');
-  el('text', { ...txt, x: 30, y: dev.y + 50, 'font-size': 14, 'font-weight': 700, fill: INK }, 'Deployer');
-  el('text', { ...txt, x: 30, y: dev.y + 66, 'font-size': 12, fill: MUTED }, '0x51d0…7b3a');
-  el('text', { ...txt, x: 345, y: 220, 'text-anchor': 'middle', 'font-size': 12, fill: MUTED }, 'Separate funders');
-})();
-
-/* ---- form ---- */
-function showError(kind, addr) {
-  const solana = kind === 'solana';
-  $('#errTag').textContent = solana ? 'Wrong chain' : 'No contract found';
-  $('#error-title').textContent = solana ? 'That looks like a Solana address.' : "There's nothing to scan here.";
-  $('#errText').textContent = solana
-    ? "Zapify reads Robinhood Chain, which uses 0x addresses. Find the token's Robinhood Chain contract and paste that instead."
-    : 'This address has no contract code on Robinhood Chain. It might be a regular wallet, or a token that lives on a different chain.';
-  $('#errAddr').textContent = addr;
-  setState('error');
-}
-function setHint(msg) {
-  $('#hint .err')?.remove();
-  if (!msg) return;
-  const s = document.createElement('span');
-  s.className = 'err'; s.setAttribute('role', 'alert'); s.textContent = msg;
-  $('#hint').prepend(s);
-}
-$('#scanForm').addEventListener('submit', (e) => {
-  e.preventDefault();
-  const v = input.value.trim();
-  if (!v) { setHint('Paste a contract address first.'); input.focus(); return; }
-  if (/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(v)) { setHint(''); return showError('solana', v); }
-  if (!/^0x[a-fA-F0-9]{40}$/.test(v)) { setHint("That isn't a valid address. It should be 0x followed by 40 characters."); input.focus(); return; }
-  setHint('');
-  // Prototype rule: the "no contract" sample errors out, every other valid address shows the dummy report.
-  runScan(v, v.toLowerCase() === NO_CONTRACT ? 'nocontract' : 'ok');
-});
-$$('[data-fill]').forEach(b => b.addEventListener('click', () => {
-  input.value = b.dataset.fill;
-  $('#scanForm').requestSubmit();
-}));
-$('#errRetry').addEventListener('click', () => { setState('empty'); input.focus(); input.select(); });
-$('#rescan').addEventListener('click', () => { if (!input.value.trim()) input.value = DUMMY; runScan(input.value.trim(), 'ok'); });
-
-$$('.copy').forEach(b => b.addEventListener('click', async () => {
-  try { await navigator.clipboard.writeText(b.dataset.copy); } catch {}
-  b.setAttribute('data-copied', '');
-  setTimeout(() => b.removeAttribute('data-copied'), 1400);
-}));
-
-$$('.filter button').forEach(btn => btn.addEventListener('click', () => {
-  $$('.filter button').forEach(b => b.setAttribute('aria-pressed', String(b === btn)));
-  const f = btn.dataset.filter;
-  $$('#findingList .finding').forEach(row => { row.hidden = f !== 'all' && row.dataset.sev !== f; });
-}));
-
-$$('.preview button').forEach(b => b.addEventListener('click', () => {
-  const s = b.dataset.set;
-  if (s === 'scanning') { input.value = input.value.trim() || DUMMY; return runScan(input.value, 'ok'); }
-  if (s === 'error') return showError('nocontract', NO_CONTRACT);
-  if (s === 'result' && !input.value.trim()) input.value = DUMMY;
-  if (s === 'empty') { input.value = ''; setHint(''); }
-  setState(s);
-}));
--->
 </body>
 </html>

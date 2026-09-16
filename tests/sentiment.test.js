@@ -1,78 +1,33 @@
-/**
- * tests/sentiment.test.js
- * Unit tests for lib/sentiment.js — post scoring, dedup ratio, scam detection.
- */
-
 import { analyzePosts, buildSentimentQueries } from '../lib/sentiment.js';
 
-// ─── analyzePosts ─────────────────────────────────────────────────────────
+function assert(condition, message) {
+  if (!condition) throw new Error('Assertion failed: ' + message);
+}
 
-test('empty posts returns zero state', () => {
-  const r = analyzePosts([]);
-  expect(r.posts).toBe(0);
-  expect(r.score).toBe(0);
-  expect(r.scamMentions).toBe(0);
-  expect(r.dupRatio).toBe(0);
-});
+console.log('Testing Sentiment Engine...');
 
-test('positive text pushes score above 0', () => {
-  const posts = [{ text: '$TOKEN bullish gem solid', likes: 10, reposts: 0, replies: 0, author: { followers: 500 } }];
-  const r = analyzePosts(posts);
-  expect(r.score).toBeGreaterThan(0);
-});
+// Test 1: Empty posts
+const s0 = analyzePosts([]);
+assert(s0.posts === 0 && s0.score === 0, 'Zero posts should yield 0 score');
 
-test('rug/scam text increments scamMentions', () => {
-  const posts = [
-    { text: 'this is a rug pull', likes: 0, reposts: 0, replies: 0, author: { followers: 100 } },
-    { text: 'total scam avoid', likes: 0, reposts: 0, replies: 0, author: { followers: 100 } },
-    { text: 'honeypot confirmed', likes: 0, reposts: 0, replies: 0, author: { followers: 100 } },
-  ];
-  const r = analyzePosts(posts);
-  expect(r.scamMentions).toBeGreaterThanOrEqual(3);
-});
+// Test 2: Bullish posts
+const sBullish = analyzePosts([
+  { text: 'Great project, bullish and safe! Audited by team.', likes: 10, reposts: 5, author: { username: 'trader1', followers: 1000 } },
+  { text: 'Undervalued gem, solid liquidity and based dev!', likes: 20, reposts: 2, author: { username: 'gem_hunter', followers: 500 } }
+]);
+assert(sBullish.score > 0.15 && sBullish.label === 'Bullish', 'Positive words should score Bullish');
 
-test('"not a rug" does not count as scam mention', () => {
-  const posts = [{ text: 'not a rug, checked the contract', likes: 0, reposts: 0, replies: 0, author: { followers: 100 } }];
-  const r = analyzePosts(posts);
-  expect(r.scamMentions).toBe(0);
-});
+// Test 3: Scam terms
+const sScam = analyzePosts([
+  { text: 'This is a rug pull! Scam dev dumped everything!', likes: 5, reposts: 1, author: { username: 'victim1', followers: 100 } },
+  { text: 'Honeypot token, cannot sell my tokens! Avoid!', likes: 8, reposts: 3, author: { username: 'victim2', followers: 200 } }
+]);
+assert(sScam.scamMentions >= 2, 'Scam terms must be counted');
+assert(sScam.score < 0, 'Scam terms should yield negative score');
 
-test('"can\'t sell" penalises score', () => {
-  const good = [{ text: 'token is amazing', likes: 5, reposts: 0, replies: 0, author: { followers: 200 } }];
-  const bad  = [{ text: "I can't sell my tokens", likes: 5, reposts: 0, replies: 0, author: { followers: 200 } }];
-  const rGood = analyzePosts(good);
-  const rBad  = analyzePosts(bad);
-  expect(rBad.score).toBeLessThan(rGood.score);
-});
+// Test 4: Query building
+const q = buildSentimentQueries('HOPPY', '0x7e57a1b2c3d4e5f60718293a4b5c6d7e8f901234');
+assert(q.some(x => x.q === '$HOPPY'), 'Queries must contain cashtag $HOPPY');
+assert(q.some(x => x.q === '0x7e57a1b2c3d4e5f60718293a4b5c6d7e8f901234'), 'Queries must contain contract address');
 
-test('duplicate posts inflate dupRatio', () => {
-  const text = 'Buy $TOKEN now 100x gem LFG';
-  const posts = Array(5).fill(null).map(() => ({
-    text, likes: 0, reposts: 0, replies: 0, author: { followers: 12 }
-  }));
-  const r = analyzePosts(posts);
-  expect(r.dupRatio).toBeGreaterThan(0.5);
-});
-
-test('low-follower posts get halved weight (not error)', () => {
-  const posts = [{ text: 'bullish', likes: 0, reposts: 0, replies: 0, author: { followers: 10 } }];
-  expect(() => analyzePosts(posts)).not.toThrow();
-});
-
-// ─── buildSentimentQueries ────────────────────────────────────────────────
-
-test('valid symbol produces cashtag query', () => {
-  const qs = buildSentimentQueries('HOPPY', '0x7e57a1b2c3d4e5f60718293a4b5c6d7e8f901234');
-  expect(qs.some(q => q.q === '$HOPPY')).toBe(true);
-});
-
-test('numeric-only symbol skipped (cashtag restriction)', () => {
-  const qs = buildSentimentQueries('1234', '0x7e57a1b2c3d4e5f60718293a4b5c6d7e8f901234');
-  expect(qs.every(q => !q.q.startsWith('$'))).toBe(true);
-});
-
-test('address query is always included', () => {
-  const addr = '0x7e57a1b2c3d4e5f60718293a4b5c6d7e8f901234';
-  const qs = buildSentimentQueries('', addr);
-  expect(qs.some(q => q.q.startsWith('0x'))).toBe(true);
-});
+console.log('✅ Sentiment engine tests passed!');

@@ -3,14 +3,10 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "build": "echo 'Static frontend — no build step needed'",
-    "test":  "node --experimental-vm-modules node_modules/.bin/jest"
+    "test": "node tests/validation.test.js && node tests/scoring.test.js && node tests/sentiment.test.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.44.2",
     "ethers": "^6.13.2"
-  },
-  "devDependencies": {
-    "jest": "^29.7.0"
   }
 }

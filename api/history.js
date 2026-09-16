@@ -1,19 +1,14 @@
-import { getWalletHistory } from '../lib/database.js';
-import { lc } from '../lib/utils.js';
+import { getHistory } from '../lib/database.js';
 
 export default async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', process.env.ALLOWED_ORIGIN || '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
-  const wallet = req.query.wallet;
-  if (!wallet || !/^0x[a-fA-F0-9]{40}$/.test(wallet)) {
-    return res.status(400).json({ error: 'Provide a valid wallet address via ?wallet=0x…' });
-  }
-
-  try {
-    const history = await getWalletHistory(lc(wallet));
-    return res.status(200).json({ wallet: lc(wallet), history });
-  } catch (err) {
-    return res.status(500).json({ error: 'Failed to fetch history' });
-  }
+  const limit = parseInt(req.query.limit || '20', 10);
+  const history = await getHistory(limit);
+  return res.status(200).json({ history });
 }
