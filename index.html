@@ -208,8 +208,310 @@ footer .logo{ color: var(--white); }
 .foot-col a:hover{ color: var(--lime); }
 .foot-bottom{ display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px; padding-top:22px; }
 
-@media (prefers-reduced-motion: reduce){
-  *, *::before, *::after{ animation:none !important; transition:none !important; }
+/* ===== SCANNER SECTION & CONSOLE ===== */
+.console{ background: var(--white); border-bottom:1px solid var(--line); padding:34px 0 28px; }
+.console-row{ display:flex; align-items:flex-end; justify-content:space-between; gap:12px 24px; flex-wrap:wrap; margin-bottom:18px; }
+.console h1{ font-size: clamp(36px, 4.6vw, 56px); }
+.form{ display:flex; gap:10px; }
+@media (max-width:600px){ .form{ flex-direction:column; } }
+.field{ flex:1; min-width:0; position:relative; }
+.field input{ width:100%; padding:17px 18px 17px 50px; border-radius: var(--r-sm); border:1.5px solid var(--ink); background: var(--paper); font-size:16px; transition: background .15s, box-shadow .15s; }
+.field input:focus{ outline:none; background: var(--white); box-shadow: 4px 4px 0 var(--lime), 4px 4px 0 1.5px var(--ink); }
+.field input::placeholder{ color:#8a8a80; }
+.field svg{ position:absolute; left:17px; top:50%; transform: translateY(-50%); width:20px; height:20px; pointer-events:none; }
+.field-hint{ margin-top:12px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; font-size:13px; color: var(--muted); }
+.field-hint .err{ color: var(--danger); font-weight:600; flex-basis:100%; }
+
+/* ===== SCANNER STATES ===== */
+[data-view]{ display:none; }
+body[data-state="empty"] [data-view="empty"],
+body[data-state="scanning"] [data-view="scanning"],
+body[data-state="result"] [data-view="result"],
+body[data-state="error"] [data-view="error"]{ display:block; }
+
+/* ----- SCANNING PIPELINE ----- */
+.scan-live{ display:grid; grid-template-columns: .8fr 1.2fr; gap:24px; align-items:start; }
+@media (max-width:900px){ .scan-live{ grid-template-columns:1fr; } }
+.pipeline{ background: var(--ink); color: var(--white); border-radius: var(--r-lg); padding:28px; }
+.pipeline h2{ font-size:34px; color: var(--white); }
+.pipeline .target{ margin-top:10px; font-size:14px; color: var(--gray-text); overflow-wrap:anywhere; }
+.bigbar{ margin:22px 0 8px; height:10px; border-radius:99px; background: var(--gray-card); overflow:hidden; }
+.bigbar i{ display:block; height:100%; width:0; background: var(--lime); border-radius:99px; transition: width .5s var(--ease); }
+.pct{ font-size:13px; color: var(--gray-text); }
+.steps{ margin-top:22px; border-top:1px solid var(--gray-card); }
+.steps li{ display:grid; grid-template-columns: 26px 1fr auto; gap:12px; align-items:center; padding:13px 0; border-bottom:1px solid var(--gray-card); font-size:15px; color: var(--gray-text); }
+.steps li b{ display:block; color: var(--white); font-weight:600; }
+.steps li small{ font-size:12.5px; }
+.st-icon{ width:22px; height:22px; border-radius:50%; border:1.5px solid #3a3a33; display:flex; align-items:center; justify-content:center; }
+.steps li.active .st-icon{ border-color: var(--lime); border-top-color: transparent; animation: spin .8s linear infinite; }
+.steps li.done .st-icon{ background: var(--lime); border-color: var(--lime); }
+.steps li.done .st-icon::after{ content:''; width:8px; height:4px; border-left:2px solid var(--ink); border-bottom:2px solid var(--ink); transform: rotate(-45deg) translate(1px,-1px); }
+.steps .ms{ font-size:12.5px; color: var(--gray-text); }
+.steps li.done .ms{ color: var(--lime); }
+@keyframes spin{ to{ transform: rotate(360deg); } }
+.skeleton-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+@media (max-width:560px){ .skeleton-grid{ grid-template-columns:1fr; } }
+.sk-card{ background: var(--white); border:1px solid var(--line); border-radius: var(--r-lg); padding:22px; }
+.sk-card.wide{ grid-column: 1 / -1; }
+.sk-card h3{ font-size:14px; margin-bottom:14px; display:flex; justify-content:space-between; }
+.sk{ height:12px; border-radius:6px; background: linear-gradient(90deg, #eeeee8 0%, #f8f8f4 40%, #eeeee8 80%); background-size:200% 100%; animation: shimmer 1.3s linear infinite; margin-bottom:10px; }
+.sk.lg{ height:38px; width:40%; }
+.sk.w70{ width:70%; } .sk.w50{ width:50%; } .sk.w85{ width:85%; }
+@keyframes shimmer{ from{ background-position:200% 0; } to{ background-position:-200% 0; } }
+.log{ margin-top:14px; background: var(--white); border:1px solid var(--line); border-radius: var(--r-md); padding:16px 18px; font-size:13.5px; color: var(--muted); min-height:120px; max-height:190px; overflow:auto; }
+.log p{ padding:3px 0; animation: rise .3s var(--ease) both; }
+.log p b{ color: var(--ink); font-weight:700; margin-right:6px; }
+
+/* ----- ERROR CARD ----- */
+.error-card{ max-width:760px; margin:10px auto 0; background: var(--white); border:1.5px solid var(--ink); border-radius: var(--r-lg); padding:36px; box-shadow: 10px 10px 0 var(--danger), 10px 10px 0 1.5px var(--ink); }
+@media (max-width:560px){ .error-card{ padding:24px; box-shadow: 6px 6px 0 var(--danger), 6px 6px 0 1.5px var(--ink); } }
+.error-card h2{ font-size: clamp(32px, 4vw, 48px); margin:16px 0 12px; }
+.error-card p{ color: var(--muted); font-size:17px; max-width:52ch; }
+.error-card .addr{ margin-top:18px; padding:12px 14px; border-radius: var(--r-sm); background: var(--paper); font-size:14px; overflow-wrap:anywhere; }
+.error-card ul{ margin-top:18px; display:flex; flex-direction:column; gap:8px; font-size:15px; }
+.error-card li{ display:flex; gap:10px; }
+.error-card li::before{ content:''; width:6px; height:6px; margin-top:9px; border-radius:50%; background: var(--ink); flex-shrink:0; }
+.error-actions{ display:flex; gap:10px; flex-wrap:wrap; margin-top:26px; }
+
+/* ----- RESULT CARDS ----- */
+.verdict-card{ background: var(--white); border:1.5px solid var(--ink); border-radius: var(--r-lg); box-shadow: 12px 12px 0 var(--lime), 12px 12px 0 1.5px var(--ink); display:grid; grid-template-columns: 1.15fr .85fr; overflow:hidden; }
+@media (max-width:900px){ .verdict-card{ grid-template-columns:1fr; } }
+@media (max-width:560px){ .verdict-card{ box-shadow: 7px 7px 0 var(--lime), 7px 7px 0 1.5px var(--ink); } }
+.vc-main{ padding:30px; }
+.vc-side{ padding:30px; background: var(--ink); color: var(--white); display:flex; flex-direction:column; justify-content:space-between; gap:24px; }
+@media (max-width:560px){ .vc-main, .vc-side{ padding:22px; } }
+.token-id{ display:flex; align-items:center; gap:16px; }
+.avatar{ width:64px; height:64px; border-radius:18px; background: var(--lime); border:1.5px solid var(--ink); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:28px; font-stretch:120%; flex-shrink:0; }
+.token-id h2{ font-size: clamp(36px, 4.4vw, 54px); }
+.token-id .name{ font-size:15px; color: var(--muted); margin-top:6px; }
+.meta{ display:flex; flex-wrap:wrap; gap:8px; margin-top:20px; }
+.copy{ cursor:pointer; }
+.copy[data-copied]::after{ content:'Copied'; margin-left:4px; color:#1a9e4b; }
+.summary{ margin-top:24px; font-size:20px; line-height:1.45; max-width:46ch; }
+.summary strong{ font-weight:700; background: linear-gradient(transparent 62%, var(--lime) 62%); }
+.score-top{ display:flex; align-items:center; justify-content:space-between; gap:12px; font-size:13px; color: var(--gray-text); }
+.score-big{ margin-top:18px; font-size: clamp(96px, 11vw, 140px); font-stretch:120%; font-weight:850; letter-spacing:-0.05em; line-height:.8; }
+.score-big small{ font-size:20px; font-weight:600; letter-spacing:0; color: var(--gray-text); }
+.meter{ position:relative; }
+.zones{ display:grid; grid-template-columns: 30fr 30fr 40fr; gap:4px; height:14px; }
+.zones span{ border-radius:4px; background: var(--gray-card); }
+.zones span.on-high{ background: var(--danger); }
+.needle{ position:absolute; top:-7px; width:4px; height:28px; border-radius:2px; background: var(--white); box-shadow: 0 0 0 2px var(--ink); transform: translateX(-2px); transition: left 1s var(--ease); }
+.zone-labels{ display:grid; grid-template-columns: 30fr 30fr 40fr; gap:4px; margin-top:10px; font-size:12px; color: var(--gray-text); }
+.coverage{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding-top:18px; border-top:1px solid var(--gray-card); font-size:13px; color: var(--gray-text); }
+.coverage .dots{ display:flex; gap:5px; }
+.coverage .dots i{ width:10px; height:10px; border-radius:3px; background: var(--lime); }
+
+/* DISAGREEMENT STRIP */
+.disagree{ margin-top:36px; display:grid; grid-template-columns: 1fr auto 1fr; align-items:stretch; background: var(--white); border:1px solid var(--line); border-radius: var(--r-lg); overflow:hidden; }
+@media (max-width:760px){ .disagree{ grid-template-columns:1fr; } }
+.dg-side{ padding:22px 26px; }
+.dg-side small{ font-size:13px; font-weight:700; }
+.dg-side p{ font-size:18px; margin-top:4px; line-height:1.4; }
+.dg-mid{ display:flex; align-items:center; justify-content:center; padding:0 22px; background: var(--ink); color: var(--lime); font-weight:800; font-stretch:120%; font-size:22px; }
+@media (max-width:760px){ .dg-mid{ padding:10px; } }
+
+/* SECTION HEADS & LENS COLS */
+.block-head{ display:flex; align-items:flex-end; justify-content:space-between; gap:12px 16px; flex-wrap:wrap; margin:72px 0 18px; }
+.block-head h2{ font-size: clamp(32px, 3.6vw, 46px); }
+.lens-cols{ display:grid; grid-template-columns: 1.15fr .85fr; gap:18px; align-items:start; }
+@media (max-width:960px){ .lens-cols{ grid-template-columns:1fr; } }
+.col{ display:flex; flex-direction:column; gap:18px; min-width:0; }
+.col-title{ display:flex; justify-content:space-between; align-items:baseline; gap:10px; padding-bottom:12px; border-bottom:1.5px solid var(--ink); }
+.col-title h3{ font-size:30px; font-stretch:115%; font-weight:800; letter-spacing:-0.02em; }
+.col-title span{ font-size:13px; color: var(--muted); text-align:right; }
+.card{ background: var(--white); border:1px solid var(--line); border-radius: var(--r-lg); padding:24px; }
+@media (max-width:520px){ .card{ padding:18px; } }
+.card h4{ font-size:17px; font-weight:700; margin-bottom:4px; }
+.card .sub{ font-size:14px; color: var(--muted); margin-bottom:18px; }
+
+/* SWITCHBOARD */
+.switches{ display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; }
+@media (max-width:560px){ .switches{ grid-template-columns: 1fr 1fr; } }
+.switch{ border:1px solid var(--line); border-radius: var(--r-md); padding:14px; display:flex; flex-direction:column; gap:12px; }
+.switch.live{ border-color: var(--ink); background: var(--paper); }
+.switch b{ font-size:14px; }
+.switch span{ font-size:12.5px; color: var(--muted); }
+.toggle{ width:40px; height:22px; border-radius:99px; background: var(--line); position:relative; flex-shrink:0; }
+.toggle::after{ content:''; position:absolute; top:3px; left:3px; width:16px; height:16px; border-radius:50%; background: var(--white); box-shadow: 0 1px 2px rgba(0,0,0,.25); }
+.switch.live .toggle{ background: var(--ink); }
+.switch.live .toggle::after{ left:21px; background: var(--lime); }
+.sw-top{ display:flex; justify-content:space-between; align-items:center; gap:8px; }
+.owner-line{ margin-top:16px; padding:12px 14px; border-radius: var(--r-sm); background: var(--lime); border:1.5px solid var(--ink); font-size:14.5px; font-weight:600; }
+
+/* STATS */
+.stats{ display:grid; grid-template-columns: repeat(4, 1fr); border:1px solid var(--line); border-radius: var(--r-md); overflow:hidden; }
+@media (max-width:560px){ .stats{ grid-template-columns: 1fr 1fr; } }
+.stats div{ padding:14px 16px; border-right:1px solid var(--line); }
+.stats div:last-child{ border-right:0; }
+@media (max-width:560px){ .stats div:nth-child(2){ border-right:0; } .stats div:nth-child(-n+2){ border-bottom:1px solid var(--line); } }
+.stats span{ font-size:12.5px; color: var(--muted); display:block; }
+.stats b{ font-size:22px; font-stretch:112%; font-weight:800; letter-spacing:-0.02em; }
+.flow{ margin-top:18px; }
+.flow-bar{ display:flex; height:32px; border-radius:8px; overflow:hidden; border:1.5px solid var(--ink); }
+.flow-bar .buy{ background: var(--lime); display:flex; align-items:center; padding-left:10px; font-size:13px; font-weight:700; }
+.flow-bar .sell{ background: var(--ink); color: var(--white); display:flex; align-items:center; justify-content:flex-end; padding-right:10px; font-size:13px; font-weight:700; }
+.flow small{ display:block; margin-top:8px; font-size:13.5px; color: var(--muted); }
+
+/* HOLDERS */
+.stack{ display:flex; height:42px; border-radius:10px; overflow:hidden; border:1.5px solid var(--ink); }
+.stack span{ height:100%; }
+.stack span + span{ border-left:1.5px solid var(--ink); }
+.legend{ margin-top:14px; display:grid; grid-template-columns: 1fr 1fr; gap:8px 22px; }
+@media (max-width:560px){ .legend{ grid-template-columns:1fr; } }
+.legend li{ display:flex; align-items:center; gap:9px; font-size:14px; }
+.legend i{ width:12px; height:12px; border-radius:3px; border:1px solid var(--ink); flex-shrink:0; }
+.legend b{ margin-left:auto; }
+.c-pool{ background: var(--paper); }
+.c-top{ background: var(--danger); }
+.c-top10{ background: var(--ink); }
+.c-rest{ background: var(--lime); }
+.c-burn{ background: #9a9a8e; }
+
+/* FUNDING GRAPH */
+.graph-wrap{ border-radius: var(--r-md); background: var(--paper); border:1px solid var(--line); overflow:hidden; }
+.graph-wrap svg{ display:block; width:100%; height:auto; }
+.g-legend{ display:flex; flex-wrap:wrap; gap:14px; margin-top:12px; font-size:13px; color: var(--muted); }
+.g-legend span{ display:flex; align-items:center; gap:7px; }
+.g-legend i{ width:18px; height:3px; border-radius:2px; }
+.facts{ display:grid; grid-template-columns: repeat(3,1fr); gap:10px; margin-top:16px; }
+@media (max-width:560px){ .facts{ grid-template-columns:1fr; } }
+.facts div{ border:1px solid var(--line); border-radius: var(--r-sm); padding:12px 14px; }
+.facts b{ display:block; font-size:26px; font-stretch:112%; font-weight:800; letter-spacing:-0.02em; }
+.facts span{ font-size:13px; color: var(--muted); }
+.facts .bad b{ color: var(--danger); }
+.facts .warn{ border-color: var(--ink); background: var(--paper); }
+
+/* X COLUMN */
+.tone-read{ display:flex; align-items:baseline; gap:10px; margin-bottom:14px; }
+.tone-read b{ font-size:40px; font-stretch:115%; font-weight:800; letter-spacing:-0.03em; line-height:1; }
+.tone-scale{ position:relative; height:16px; border-radius:99px; background: linear-gradient(90deg, var(--danger) 0%, #e9e9e1 50%, var(--lime) 100%); border:1.5px solid var(--ink); }
+.tone-pin{ position:absolute; top:50%; width:24px; height:24px; border-radius:50%; background: var(--white); border:2.5px solid var(--ink); transform: translate(-50%,-50%); transition: left 1s var(--ease); }
+.tone-labels{ display:flex; justify-content:space-between; margin-top:8px; font-size:12.5px; color: var(--muted); }
+.note{ margin-top:16px; padding:12px 14px; border-radius: var(--r-sm); background: var(--paper); font-size:14px; }
+.hours{ display:flex; align-items:flex-end; gap:3px; height:90px; margin-top:4px; border-bottom:1.5px solid var(--ink); }
+.hours i{ flex:1; background: var(--ink); border-radius:2px 2px 0 0; min-height:3px; }
+.hours i.spike{ background: var(--danger); }
+.hours-axis{ display:flex; justify-content:space-between; font-size:12px; color: var(--muted); margin-top:6px; }
+.x-col .facts{ grid-template-columns: 1fr 1fr; margin-top:0; }
+.posts{ display:flex; flex-direction:column; gap:10px; }
+.post{ border:1px solid var(--line); border-radius: var(--r-md); padding:14px; }
+.post-head{ display:flex; align-items:center; gap:10px; font-size:13px; line-height:1.3; }
+.pfp{ width:32px; height:32px; border-radius:50%; background: var(--paper); border:1px solid var(--line); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; flex-shrink:0; }
+.post-head b{ font-size:14px; display:block; }
+.post-head .tag{ margin-left:auto; }
+.post p{ margin-top:10px; font-size:14.5px; line-height:1.45; }
+.post .foot{ margin-top:10px; display:flex; gap:14px; flex-wrap:wrap; font-size:12.5px; color: var(--muted); }
+.post.dup{ border-style:dashed; border-color:#b5b5aa; opacity:.8; }
+.tag{ font-size:11px; font-weight:700; padding:2px 8px; border-radius:99px; white-space:nowrap; }
+.tag.pos{ background: var(--lime); }
+.tag.neg{ background: var(--danger); color: var(--white); }
+.tag.dup{ background: var(--paper); border:1px solid var(--line); }
+
+/* FINDINGS */
+.filter{ display:flex; gap:6px; flex-wrap:wrap; }
+.filter button{ font-size:14px; font-weight:600; padding:7px 14px; border-radius:99px; border:1px solid var(--line); background: var(--white); cursor:pointer; }
+.filter button:hover{ border-color: var(--ink); }
+.filter button[aria-pressed="true"]{ background: var(--ink); color: var(--white); border-color: var(--ink); }
+.findings{ background: var(--white); border:1px solid var(--line); border-radius: var(--r-lg); overflow:hidden; }
+.finding{ display:grid; grid-template-columns: 84px 1fr auto; gap:16px; align-items:center; padding:16px 22px; border-bottom:1px solid var(--line); }
+.finding:last-child{ border-bottom:0; }
+@media (max-width:600px){ .finding{ grid-template-columns: 1fr auto; gap:8px 12px; padding:14px 16px; } .finding .txt{ grid-column: 1 / -1; grid-row:2; } }
+.finding .txt b{ display:block; font-size:15.5px; }
+.finding .txt span{ font-size:13.5px; color: var(--muted); }
+.finding .src{ font-size:13px; font-weight:600; padding:5px 10px; border-radius:99px; border:1px solid var(--line); white-space:nowrap; justify-self:end; }
+.finding .src:hover{ border-color: var(--ink); }
+.finding.pass .txt b{ font-weight:600; }
+.finding[hidden]{ display:none; }
+
+/* BREAKDOWN */
+.breakdown{ background: var(--white); border:1px solid var(--line); border-radius: var(--r-lg); padding:24px; }
+.bk-bar{ display:flex; height:48px; border-radius:10px; overflow:hidden; border:1.5px solid var(--ink); }
+.bk-bar span{ display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; }
+.bk-bar span + span{ border-left:1.5px solid var(--ink); }
+.bk-bar .h{ background: var(--danger); color: var(--white); }
+.bk-bar .m{ background: var(--ink); color: var(--lime); }
+.bk-bar .l{ background: var(--lime); }
+.bk-list{ margin-top:16px; display:grid; grid-template-columns: repeat(3, 1fr); gap:0 24px; font-size:14.5px; }
+@media (max-width:760px){ .bk-list{ grid-template-columns:1fr; } }
+.bk-list li{ display:flex; justify-content:space-between; gap:10px; padding:8px 0; border-bottom:1px solid var(--line); }
+.formula{ margin-top:16px; font-size:14.5px; color: var(--muted); }
+.formula b{ color: var(--ink); }
+
+/* EVIDENCE */
+.evidence{ display:grid; grid-template-columns: repeat(4, 1fr); gap:10px; }
+@media (max-width:860px){ .evidence{ grid-template-columns: 1fr 1fr; } }
+.evidence a{ display:flex; flex-direction:column; background: var(--white); border:1px solid var(--line); border-radius: var(--r-md); padding:16px 18px; }
+.evidence a:hover{ border-color: var(--ink); }
+.evidence b{ font-size:16px; }
+.evidence span{ font-size:13px; color: var(--muted); }
+.closing{ margin-top:40px; padding:20px 24px; border-radius: var(--r-md); background: var(--ink); color: var(--gray-text); font-size:14.5px; display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap; align-items:center; }
+.closing b{ color: var(--white); }
+
+body[data-state="result"] .rise{ animation: rise .5s var(--ease) both; }
+body[data-state="result"] .rise.d2{ animation-delay:.12s; }
+@keyframes rise{ from{ opacity:0; transform: translateY(10px); } }
+
+#rescan{ background: var(--lime); color: var(--ink); font-weight:700; }
+#rescan:hover{ transform: translate(-2px,-2px); box-shadow: 2px 2px 0 var(--white); background: #d4ff1a; }
+
+/* ===== SCAN BEFORE YOU BUY SECTION ===== */
+.scan-box{ display:grid; grid-template-columns: .85fr 1.15fr; gap:48px; align-items:start; }
+@media (max-width:960px){ .scan-box{ grid-template-columns:1fr; gap:32px; } }
+.scan-box .lede{ margin-top:18px; }
+@media (min-width:961px){ .scan-box > div:first-child{ position:sticky; top:100px; } }
+.scan-card{ border:1.5px solid var(--ink); border-radius: var(--r-lg); padding:30px; background: var(--white); }
+@media (max-width:520px){ .scan-card{ padding:20px; } }
+.scan-card label{ display:block; font-size:14px; font-weight:600; margin-bottom:10px; }
+.scan-card .scan-row{ margin-top:0; max-width:none; display:flex; gap:10px; }
+@media (max-width:520px){ .scan-card .scan-row{ flex-direction:column; } }
+.scan-card .input{ flex:1; min-width:0; padding:15px 18px; border-radius: var(--r-sm); border:1.5px solid var(--line); background: var(--paper); font-size:15px; transition: border-color .15s, background .15s; }
+.scan-card .input:focus{ outline:none; border-color: var(--ink); background: var(--white); }
+.scan-card .input::placeholder{ color:#8a8a80; }
+.example-row{ margin-top:12px; font-size:13px; color: var(--muted); display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.example-chip{ font-size:13px; font-weight:600; background: var(--paper); border:1px solid var(--line); border-radius:99px; padding:5px 12px; cursor:pointer; }
+.example-chip:hover{ border-color: var(--ink); }
+.empty-hint{ margin-top:22px; padding:18px; border:1px dashed var(--line); border-radius: var(--r-md); font-size:14px; color: var(--muted); }
+.scan-status-line{ display:none; align-items:center; gap:10px; margin-top:14px; font-size:14px; font-weight:600; }
+.scan-status-line.active{ display:flex; }
+.spin-ring{ width:14px; height:14px; border-radius:50%; border:2px solid var(--lime); border-top-color: var(--ink); animation: spin .8s linear infinite; }
+.mini-result{ display:none; margin-top:16px; background: var(--white); border:1px solid var(--line); border-radius: var(--r-md); padding:18px 20px; text-align:left; }
+.mini-result.active{ display:block; animation: rise .35s var(--ease); }
+.mini-result.active + .empty-hint{ display:none; }
+.mini-row{ display:flex; justify-content:space-between; gap:16px; font-size:13.5px; padding:5px 0; color: var(--muted); }
+.mini-row span:last-child{ color: var(--fg); font-weight:600; text-align:right; }
+.rep-top{ display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:10px; }
+.rep-id{ display:flex; flex-direction:column; min-width:0; }
+.rep-id strong{ font-size:18px; font-stretch:112%; overflow-wrap:anywhere; }
+.rep-id span{ font-size:13px; color: var(--muted); overflow-wrap:anywhere; }
+.rep-verdict{ font-size:12px; font-weight:700; padding:4px 11px; border-radius:999px; white-space:nowrap; }
+.rep-verdict.lv-low{ background: var(--lime); color: var(--ink); }
+.rep-verdict.lv-medium{ background: var(--ink); color: var(--lime); }
+.rep-verdict.lv-high{ background: var(--danger); color: var(--white); }
+.rep-score{ display:flex; align-items:center; gap:12px; margin-bottom:10px; font-size:14px; }
+.rep-bar{ flex:1; height:8px; border-radius:99px; background: var(--paper); border:1px solid var(--line); overflow:hidden; }
+.rep-bar span{ display:block; height:100%; background: var(--ink); border-radius:99px; transition: width .6s var(--ease); }
+.rep-sub{ margin:16px 0 8px; font-size:13px; font-weight:700; }
+.rep-findings, .rep-posts{ list-style:none; display:flex; flex-direction:column; gap:7px; }
+.rep-findings li{ display:flex; gap:9px; align-items:baseline; font-size:13.5px; line-height:1.45; }
+.rep-findings .sev-tag{ flex-shrink:0; font-size:11px; font-weight:700; padding:1px 8px; border-radius:999px; border:1px solid var(--line); background: var(--paper); color: var(--muted); }
+.rep-findings .sev-high .sev-tag{ background: var(--danger); color: var(--white); border-color: var(--danger); }
+.rep-findings .sev-medium .sev-tag{ background: var(--ink); color: var(--lime); border-color: var(--ink); }
+.rep-findings .sev-low .sev-tag{ background: var(--lime); color: var(--ink); border-color: var(--lime); }
+.rep-posts li{ font-size:13px; color: var(--muted); line-height:1.45; display:flex; gap:9px; }
+.rep-posts em{ font-style:normal; color: var(--fg); }
+.rep-dot{ width:8px; height:8px; border-radius:50%; background: var(--line); flex-shrink:0; margin-top:6px; }
+.rep-dot.pos{ background: var(--lime); box-shadow: 0 0 0 1.5px var(--ink); }
+.rep-dot.neg{ background: var(--danger); }
+.rep-links{ display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; }
+.rep-links a{ font-size:13px; font-weight:600; padding:5px 11px; border-radius:99px; border:1px solid var(--line); }
+.rep-links a:hover{ border-color: var(--ink); }
+.rep-foot{ margin-top:12px; font-size:12.5px; color: var(--muted); }
+.rep-error{ font-size:14px; color: var(--danger); font-weight:600; padding:8px 0; }
+
+/* Scroll offset for clean navbar anchors */
+#top, #checks, #scanner, #how, #scan, #faq {
+  scroll-margin-top: 84px;
 }
 </style>
 </head>
@@ -236,24 +538,25 @@ footer .logo{ color: var(--white); }
   <div class="wrap nav-in">
     <a href="#top" class="logo"><svg aria-hidden="true"><use href="#logo"/></svg>Zapify</a>
     <div class="nav-links">
-      <a href="/scan">Scanner</a>
+      <a href="#scanner">Scanner</a>
       <a href="#checks">What we check</a>
       <a href="#how">How scoring works</a>
       <a href="#faq">FAQ</a>
     </div>
     <div class="nav-right">
       <span class="net"><span class="pulse" aria-hidden="true"></span>Robinhood Chain, 4663</span>
-      <a href="/scan" class="btn btn-lime btn-sm">Scan a token</a>
+      <a href="#scanner" class="btn btn-lime btn-sm">Scan a token</a>
       <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileNav">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h18M3 12h18M3 17h18"/></svg>
       </button>
     </div>
   </div>
   <div class="mobile-nav" id="mobileNav">
-    <a href="/scan">Scanner</a>
+    <a href="#scanner">Scanner</a>
     <a href="#checks">What we check</a>
     <a href="#how">How scoring works</a>
     <a href="#faq">FAQ</a>
+    <a href="#scanner" style="color:var(--lime);background:var(--ink);font-weight:700">Scan a token ↗</a>
   </div>
 </nav>
 
@@ -271,6 +574,12 @@ footer .logo{ color: var(--white); }
         <input type="text" class="input" id="heroInput" placeholder="Paste a token contract address (0x…)" aria-label="Robinhood Chain token contract address" autocomplete="off" spellcheck="false">
         <button class="btn btn-lime" id="heroScanBtn" type="submit">Scan token</button>
       </form>
+      <div class="field-hint" id="heroHint" style="margin-top:12px;margin-bottom:18px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--muted)">
+        <span>Try 3 examples:</span>
+        <button type="button" class="chip" data-hero-fill="0x88ad4a868ff114ab811eb7754f92bc31cb7f9062"><span class="dot"></span>1. $STANDARD (Clean)</button>
+        <button type="button" class="chip" data-hero-fill="0x3f2a58b8d41e738c6bf656a81e35a092891c9c41"><span class="dot" style="background:var(--danger)"></span>2. $EXAMPLE (High risk)</button>
+        <button type="button" class="chip" data-hero-fill="0x0000000000000000000000000000000000000abc"><span class="dot" style="background:#b5b5aa"></span>3. No contract</button>
+      </div>
 
       <ul class="assure">
         <li><svg aria-hidden="true"><use href="#tick"/></svg>Read-only, never asks for your wallet</li>
@@ -369,6 +678,245 @@ footer .logo{ color: var(--white); }
         </div>
       </div>
     </div>
+
+    <!-- ============ LIVE SCANNER (INTEGRATED IN WHAT WE CHECK) ============ -->
+    <div id="scanner" style="margin-top:64px; scroll-margin-top:84px;">
+      <div class="console" style="border:1.5px solid var(--ink); border-radius:var(--r-lg); padding:32px 30px; background:var(--white);">
+        <div class="console-row" style="margin-bottom:18px;">
+          <div>
+            <span class="hero-tag" style="margin-bottom:8px;"><span class="dot"></span>Scanner Console</span>
+            <h3 class="display" style="font-size:clamp(30px, 4vw, 44px);">Scan a token now.</h3>
+          </div>
+          <p class="muted">Read-only. No wallet, no sign-in, nothing stored.</p>
+        </div>
+        <form class="form" id="scanForm" novalidate>
+          <label class="field">
+            <span class="sr-only">Robinhood Chain token contract address</span>
+            <svg aria-hidden="true"><use href="#lens"/></svg>
+            <input id="addr" type="text" placeholder="Paste a token contract address, 0x…" autocomplete="off" spellcheck="false">
+          </label>
+          <button class="btn btn-lime" id="scanBtn" type="submit">Scan token</button>
+        </form>
+        <div class="field-hint" id="hint">
+          <span>Try 3 examples:</span>
+          <button type="button" class="chip" data-scanner-fill="0x88ad4a868ff114ab811eb7754f92bc31cb7f9062"><span class="dot"></span>1. $STANDARD (Clean)</button>
+          <button type="button" class="chip" data-scanner-fill="0x3f2a58b8d41e738c6bf656a81e35a092891c9c41"><span class="dot" style="background:var(--danger)"></span>2. $EXAMPLE (High risk)</button>
+          <button type="button" class="chip" data-scanner-fill="0x0000000000000000000000000000000000000abc"><span class="dot" style="background:#b5b5aa"></span>3. No contract</button>
+        </div>
+      </div>
+
+      <!-- ============ SCANNING VIEW ============ -->
+      <section data-view="scanning" aria-labelledby="scanning-title" style="margin-top:32px;">
+        <div class="scan-live">
+          <div class="pipeline on-ink" role="status" aria-live="polite">
+            <h2 class="display" id="scanning-title">Reading both sides…</h2>
+            <p class="target" id="scanTarget">0x7e57a1b2c3d4e5f60718293a4b5c6d7e8f901234</p>
+            <div class="bigbar"><i id="bigbar"></i></div>
+            <span class="pct" id="pct">0% complete</span>
+            <ul class="steps" id="steps">
+              <li><span class="st-icon"></span><span><b>Contract</b><small>Bytecode, owner, proxy slot</small></span><span class="ms">waiting</span></li>
+              <li><span class="st-icon"></span><span><b>Explorer</b><small>Holders, verification, creator</small></span><span class="ms">waiting</span></li>
+              <li><span class="st-icon"></span><span><b>Market</b><small>Pools, liquidity, 24h trades</small></span><span class="ms">waiting</span></li>
+              <li><span class="st-icon"></span><span><b>Buyer funding</b><small>Tracing 12 recent buyers</small></span><span class="ms">waiting</span></li>
+              <li><span class="st-icon"></span><span><b>Sentiment on 𝕏</b><small>Ticker and contract mentions</small></span><span class="ms">waiting</span></li>
+            </ul>
+          </div>
+          <div>
+            <div class="skeleton-grid" aria-hidden="true">
+              <div class="sk-card wide"><h3><span>Verdict</span><span class="muted">pending</span></h3><div class="sk lg"></div><div class="sk w85"></div><div class="sk w50"></div></div>
+              <div class="sk-card"><h3><span>On-chain</span></h3><div class="sk"></div><div class="sk w70"></div><div class="sk w85"></div><div class="sk w50"></div></div>
+              <div class="sk-card"><h3><span>On 𝕏</span></h3><div class="sk w85"></div><div class="sk"></div><div class="sk w50"></div><div class="sk w70"></div></div>
+            </div>
+            <div class="log" id="log" aria-label="Scan log"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ ERROR VIEW ============ -->
+      <section data-view="error" aria-labelledby="error-title" style="margin-top:32px;">
+        <div class="error-card">
+          <span class="verdict high" id="errTag">No contract found</span>
+          <h2 class="display" id="error-title">There's nothing to scan here.</h2>
+          <p id="errText">This address has no contract code on Robinhood Chain. It might be a regular wallet, or a token that lives on a different chain.</p>
+          <div class="addr" id="errAddr">0x0000000000000000000000000000000000000abc</div>
+          <ul>
+            <li>Copy the address from the token's DexScreener or Blockscout page, not from a post.</li>
+            <li>Check the chain. Zapify only reads Robinhood Chain mainnet, chain ID 4663.</li>
+            <li>Solana addresses won't work here.</li>
+          </ul>
+          <div class="error-actions">
+            <button type="button" class="btn btn-ink" id="errRetry">Edit the address</button>
+            <button type="button" class="btn btn-ghost" data-scanner-fill="0x88ad4a868ff114ab811eb7754f92bc31cb7f9062">Scan $STANDARD</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ RESULT VIEW ============ -->
+      <section data-view="result" aria-labelledby="token-title" style="margin-top:32px;">
+        <div class="verdict-card rise">
+          <div class="vc-main">
+            <div class="token-id">
+              <div class="avatar" id="tokenAvatar" aria-hidden="true">?</div>
+              <div>
+                <h2 class="display" id="token-title">—</h2>
+                <p class="name" id="tokenName">—</p>
+              </div>
+            </div>
+            <div class="meta" id="tokenMeta">
+              <button type="button" class="chip copy" id="tokenAddrChip" data-copy="" aria-label="Copy contract address">—</button>
+              <span class="chip"><span class="dot"></span>Robinhood Chain</span>
+              <span class="chip" id="tokenPairAge"></span>
+              <span class="chip" id="tokenScannedAt"></span>
+            </div>
+            <p class="summary" id="tokenSummary"></p>
+          </div>
+          <div class="vc-side on-ink">
+            <div>
+              <div class="score-top"><span class="verdict" id="scoreVerdict">—</span><span>Risk score</span></div>
+              <div class="score-big"><span id="scoreValue">—</span><small> / 100</small></div>
+            </div>
+            <div class="meter" aria-hidden="true">
+              <div class="zones"><span></span><span></span><span id="zoneHigh"></span></div>
+              <div class="needle" id="needle" style="left:0%"></div>
+              <div class="zone-labels"><span>Low 0–29</span><span>Caution 30–59</span><span>High 60–100</span></div>
+            </div>
+            <div class="coverage">
+              <span id="coverageText">Data coverage: — of 5 sources</span>
+              <span class="dots" aria-hidden="true" id="coverageDots"></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="disagree rise d2">
+          <div class="dg-side"><small>The contract says</small><p id="disagreeOnchain">—</p></div>
+          <div class="dg-mid">but</div>
+          <div class="dg-side"><small>The buyers and the room say</small><p id="disagreeOffchain">—</p></div>
+        </div>
+
+        <div class="block-head"><h2 class="display">Both lenses.</h2><span class="muted">Every panel has a matching entry in the findings.</span></div>
+        <div class="lens-cols">
+
+          <div class="col">
+            <div class="col-title"><h3>On-chain</h3><span>RPC, Blockscout, DexScreener</span></div>
+
+            <div class="card">
+              <h4>Hidden switches</h4>
+              <p class="sub" id="switchesSub">Powers written into the contract. A switch only matters while someone can still flip it.</p>
+              <div class="switches" id="switchGrid">
+                <div class="switch" id="switchMint"><div class="sw-top"><b>Mint</b><span class="toggle" aria-hidden="true"></span></div><span>—</span></div>
+                <div class="switch" id="switchBlacklist"><div class="sw-top"><b>Blacklist</b><span class="toggle" aria-hidden="true"></span></div><span>—</span></div>
+                <div class="switch" id="switchTax"><div class="sw-top"><b>Change tax</b><span class="toggle" aria-hidden="true"></span></div><span>—</span></div>
+                <div class="switch" id="switchMaxWallet"><div class="sw-top"><b>Max wallet</b><span class="toggle" aria-hidden="true"></span></div><span>—</span></div>
+                <div class="switch" id="switchPause"><div class="sw-top"><b>Pause</b><span class="toggle" aria-hidden="true"></span></div><span>—</span></div>
+                <div class="switch" id="switchUpgrade"><div class="sw-top"><b>Upgradeable</b><span class="toggle" aria-hidden="true"></span></div><span>—</span></div>
+              </div>
+              <p class="owner-line" id="ownerLine">Checking ownership…</p>
+            </div>
+
+            <div class="card">
+              <h4>Liquidity and sells</h4>
+              <p class="sub" id="liquiditySub">Loading market data…</p>
+              <div class="stats">
+                <div><span>Liquidity</span><b id="statLiquidity">—</b></div>
+                <div><span>Price</span><b id="statPrice">—</b></div>
+                <div><span>FDV</span><b id="statFdv">—</b></div>
+                <div><span>24h volume</span><b id="statVolume">—</b></div>
+              </div>
+              <div class="flow" id="flowSection">
+                <div class="flow-bar" id="flowBar" role="img" aria-label="Buy/sell ratio"></div>
+                <small id="flowNote"></small>
+              </div>
+            </div>
+
+            <div class="card">
+              <h4>Holder spread</h4>
+              <p class="sub" id="holderSub">Loading holder data…</p>
+              <div class="stack" id="holderStack" role="img" aria-label="Token supply distribution"></div>
+              <ul class="legend" id="holderLegend"></ul>
+            </div>
+
+            <div class="card">
+              <h4>Funding clusters</h4>
+              <p class="sub" id="fundingSub">Where recent buyers got their funds before buying.</p>
+              <div class="graph-wrap"><svg id="graph" viewBox="0 0 560 330" role="img" aria-label="Funding cluster graph"></svg></div>
+              <div class="g-legend">
+                <span><i style="background:var(--danger)"></i>Shared funder</span>
+                <span><i style="background:var(--ink)"></i>Funded by the deployer</span>
+                <span><i style="background:#b5b5aa"></i>Independent</span>
+              </div>
+              <div class="facts" id="fundingFacts">
+                <div><b id="factParent">—</b><span>of buyers share one funder</span></div>
+                <div><b id="factDeployer">—</b><span>were funded by deployer</span></div>
+                <div><b id="factBlock">—</b><span>of buys in one block</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col x-col">
+            <div class="col-title"><h3>On 𝕏</h3><span>Last 7 days</span></div>
+
+            <div class="card">
+              <h4>Weighted tone</h4>
+              <p class="sub" id="xToneSub">Loading X sentiment…</p>
+              <div class="tone-read"><b id="toneValue">—</b><span class="muted" id="toneLabel"></span></div>
+              <div class="tone-scale" role="img" id="toneScaleEl" aria-label="Sentiment scale"><span class="tone-pin" id="tonePin" style="left:50%"></span></div>
+              <div class="tone-labels"><span>Bearish</span><span>Neutral</span><span>Bullish</span></div>
+              <p class="note"><b>Hype never lowers your score.</b> Excitement isn't evidence that a token is safe.</p>
+            </div>
+
+            <div class="card">
+              <h4>Post volume</h4>
+              <p class="sub" id="hoursSub">Posts per hour (last 24h). Red bar = burst of identical posts.</p>
+              <div class="hours" id="hours" aria-hidden="true"></div>
+              <div class="hours-axis"><span>24h ago</span><span>12h ago</span><span>Now</span></div>
+            </div>
+
+            <div class="card">
+              <h4>Shill filter and scam trail</h4>
+              <p class="sub">Signals that change how much each post counts.</p>
+              <div class="facts x-col" id="xShillFacts">
+                <div><b id="xDupPct">—</b><span>Copy-paste posts</span></div>
+                <div><b id="xScamCount">—</b><span>Posts calling it a rug or scam</span></div>
+              </div>
+            </div>
+
+            <div class="card">
+              <h4>Posts that carried the most weight</h4>
+              <p class="sub" id="xPostsSub">Top posts by engagement and relevance.</p>
+              <div class="posts" id="xPosts"></div>
+              <div style="margin-top:12px;font-size:13px;" id="xSearchLinks"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="block-head" id="findings">
+          <h2 class="display">Findings.</h2>
+          <div class="filter" role="group" aria-label="Filter findings" id="findingFilter">
+            <button type="button" aria-pressed="true" data-filter="all">All —</button>
+            <button type="button" aria-pressed="false" data-filter="high">High —</button>
+            <button type="button" aria-pressed="false" data-filter="medium">Medium —</button>
+            <button type="button" aria-pressed="false" data-filter="low">Low —</button>
+            <button type="button" aria-pressed="false" data-filter="pass">Passed —</button>
+          </div>
+        </div>
+        <div class="findings" id="findingList"></div>
+
+        <div class="block-head"><h2 class="display">Breakdown.</h2><span class="muted">How the score is added up</span></div>
+        <div class="breakdown">
+          <div class="bk-bar" role="img" id="bkBar" aria-label="Risk severity breakdown"></div>
+          <ul class="bk-list" id="bkList"></ul>
+          <p class="formula" id="bkFormula"></p>
+        </div>
+
+        <div class="block-head"><h2 class="display">Evidence.</h2><span class="muted">Check the data yourself</span></div>
+        <div class="evidence" id="evidenceLinks"></div>
+
+        <div class="closing on-ink">
+          <span><b>A second opinion, not financial advice.</b> Owners, holders and liquidity can change after this scan.</span>
+          <button type="button" class="btn btn-lime btn-sm" id="rescan">Scan again</button>
+        </div>
+      </section>
+    </div>
   </div>
 </section>
 
@@ -390,6 +938,31 @@ footer .logo{ color: var(--white); }
       <div role="listitem"><span class="verdict high">High risk</span><span class="range">60–100</span><p>Serious flags, or a hard stop such as zero sells or a majority whale.</p></div>
     </div>
     <p class="coverage-note"><b>Data coverage comes with every report.</b> It shows how many of the five data sources answered, so a clean result with low coverage reads as incomplete rather than safe.</p>
+  </div>
+</section>
+
+<!-- ============ SCAN BEFORE YOU BUY ============ -->
+<section class="section" id="scan" aria-labelledby="scan-title">
+  <div class="wrap scan-box">
+    <div>
+      <h2 class="display" id="scan-title">Scan before<br>you buy.</h2>
+      <p class="lede">Paste a contract address. The full report lists every finding, the posts that carried the most weight, and links so you can check the evidence yourself.</p>
+    </div>
+    <div class="scan-card">
+      <label for="mainInput">Robinhood Chain token contract address</label>
+      <div class="scan-row">
+        <input type="text" class="input" id="mainInput" placeholder="0x…" autocomplete="off" spellcheck="false">
+        <button class="btn btn-lime" id="mainScanBtn" type="button">Run full scan</button>
+      </div>
+      <div class="example-row">
+        <span>Try an example:</span>
+        <button type="button" class="example-chip" data-main-fill="0x716d3aea78a8e767b127ec0b2916dbbe7383a757">$SPAWND (0x716d…a757)</button>
+        <button type="button" class="example-chip" data-main-fill="0x88ad4a868ff114ab811eb7754f92bc31cb7f9062">$STANDARD (0x88ad…9062)</button>
+      </div>
+      <div class="scan-status-line" id="mainStatus" role="status" aria-live="polite"><span class="spin-ring"></span><span class="status-text">Scanning on Robinhood Chain…</span></div>
+      <div class="mini-result" id="mainResult" aria-live="polite"></div>
+      <p class="empty-hint" id="mainEmptyHint">Your report will appear here. Nothing is stored, and no wallet connection is needed.</p>
+    </div>
   </div>
 </section>
 
@@ -438,7 +1011,7 @@ footer .logo{ color: var(--white); }
       </div>
       <div class="foot-col">
         <h4>Product</h4>
-        <a href="/scan">Scanner</a>
+        <a href="#scanner">Scanner</a>
         <a href="#checks">What we check</a>
         <a href="#how">How scoring works</a>
         <a href="#faq">FAQ</a>

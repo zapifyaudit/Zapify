@@ -664,15 +664,23 @@ form?.addEventListener('submit', async (e) => {
   await doScan(v.toLowerCase());
 });
 
-$$('[data-fill]').forEach(b => b.addEventListener('click', () => {
-  if (input) input.value = b.dataset.fill;
-  form?.requestSubmit();
+// Scanner Console example chips (Only populates the Scanner Console #addr)
+$$('[data-scanner-fill], #scanner [data-fill], .error-card [data-fill]').forEach(b => b.addEventListener('click', () => {
+  const ca = b.dataset.scannerFill || b.dataset.fill;
+  if (ca && input) {
+    input.value = ca;
+    form?.requestSubmit();
+  }
 }));
 
-$('#errRetry')?.addEventListener('click', () => { setState('empty'); input?.focus(); input?.select(); });
+$('#errRetry')?.addEventListener('click', () => {
+  setState('empty');
+  if (input) { input.focus(); input.select(); }
+});
 $('#rescan')?.addEventListener('click', () => {
-  if (!input?.value.trim()) return setState('empty');
-  doScan(input.value.trim().toLowerCase());
+  const target = $('#scanner') || $('#scanForm');
+  if (target) target.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+  if (input) { input.focus(); input.select(); }
 });
 
 async function doScan(addr) {
@@ -1253,11 +1261,19 @@ function renderSpecimen(data) {
 
   const specFoot = $('#specFoot');
   if (specFoot) {
-    specFoot.innerHTML = `Report generated from live RPC, Blockscout, DexScreener &amp; 𝕏 data. <a href="/scan?ca=${esc(address)}" style="text-decoration:underline;font-weight:700">Open full report in Scanner ↗</a>`;
+    specFoot.innerHTML = `Report generated from live RPC, Blockscout, DexScreener &amp; 𝕏 data. <a href="#scanner" class="hero-to-scanner" style="text-decoration:underline;font-weight:700">Open full report in Scanner ↗</a>`;
+    specFoot.querySelector('.hero-to-scanner')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      $('#scanner')?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+      if (input && form) {
+        input.value = address;
+        form.requestSubmit();
+      }
+    });
   }
 }
 
-// Hero Search form wiring (Independent on Homepage, does NOT touch the Scanner console)
+// Hero Search form wiring (Completely independent: updates Specimen Card ONLY)
 const heroInput = $('#heroInput');
 const heroBtn = $('#heroScanBtn');
 const heroForm = $('#heroScanForm');
@@ -1285,6 +1301,13 @@ async function handleHeroScan() {
   }
 }
 
+$$('[data-hero-fill]').forEach(b => b.addEventListener('click', () => {
+  if (heroInput) {
+    heroInput.value = b.dataset.heroFill;
+    handleHeroScan();
+  }
+}));
+
 if (heroBtn && heroInput) {
   heroBtn.addEventListener('click', (e) => {
     e.preventDefault();
@@ -1301,6 +1324,122 @@ if (heroForm) {
   heroForm.addEventListener('submit', (e) => {
     e.preventDefault();
     handleHeroScan();
+  });
+}
+
+// Scan before you buy section wiring (#mainInput & #mainScanBtn, completely independent)
+const mainInput = $('#mainInput');
+const mainBtn = $('#mainScanBtn');
+const mainStatus = $('#mainStatus');
+const mainResult = $('#mainResult');
+let mainScanning = false;
+
+function renderMainReport(el, r) {
+  const res = r.result, m = r.market, h = r.holderStats, s = r.sentiment;
+  const holders = r.explorer?.token?.holders_count ?? r.explorer?.token?.holders;
+  const verified = r.explorer?.verified;
+  const levelText = { low: 'Low risk', medium: 'Caution', high: 'High risk' };
+  const rows = [
+    ['Network', 'Robinhood Chain (4663)'],
+    ['Price', m?.priceUsd ? fmtUsd(m.priceUsd) : '—'],
+    ['Liquidity', m?.liquidityUsd != null ? fmtUsd(m.liquidityUsd) : 'unavailable'],
+    ['Holders', holders != null ? Number(holders).toLocaleString('en-US') : '—'],
+    ['Largest wallet', h?.topWallet ? pct(h.topWallet.share) : '—'],
+    ['Source verified', verified == null ? '—' : verified ? 'Yes' : 'No'],
+    ['Buyer pattern', r.flow ? res.subclass : 'not enough trades'],
+    ['𝕏 sentiment', s?.enabled ? `${s.label}, ${s.posts} posts` : 'open search ↗']
+  ];
+  const findings = res.findings || [];
+  const links = [
+    { label: 'Blockscout', url: `https://robinhoodchain.blockscout.com/token/${r.address}` },
+    m?.dexUrl ? { label: 'DexScreener', url: m.dexUrl } : null,
+    ...(s?.links || []).map(l => ({ label: '𝕏 ' + l.label, url: l.url }))
+  ].filter(Boolean);
+
+  el.innerHTML = `
+    <div class="rep-top">
+      <div class="rep-id"><strong>$${esc(r.symbol || 'TOKEN')}</strong><span>${esc(r.name || r.address)}</span></div>
+      <span class="rep-verdict lv-${res.level}">${levelText[res.level] || res.level}</span>
+    </div>
+    <div class="rep-score">
+      <div class="rep-bar" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${res.score}" aria-label="Risk score"><span style="width:${res.score}%"></span></div>
+      <b>${res.score} / 100</b>
+    </div>
+    ${rows.map(([k, v]) => `<div class="mini-row"><span>${k}</span><span>${esc(v)}</span></div>`).join('')}
+    <div class="rep-sub">Findings (${findings.length})</div>
+    <ul class="rep-findings">${findings.length ? findings.map(f => `<li class="sev-${f.severity}"><span class="sev-tag">${f.severity}</span>${esc(f.text)}</li>`).join('') : '<li class="sev-low"><span class="sev-tag">ok</span>No red flags in the checks that ran.</li>'}</ul>
+    <div class="rep-links">${links.map(l => `<a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">${esc(l.label)} ↗</a>`).join('')}</div>
+    <div class="rep-foot">Coverage ${Math.round(res.coverage * 100)}% for ${esc(shortAddr(r.address))}. <a href="#scanner" class="main-to-scanner" style="text-decoration:underline;font-weight:700">Open in Scanner Console ↗</a></div>
+  `;
+
+  el.querySelector('.main-to-scanner')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    $('#scanner')?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+    if (input && form) {
+      input.value = r.address;
+      form.requestSubmit();
+    }
+  });
+}
+
+async function handleMainScan() {
+  if (mainScanning || !mainInput) return;
+  const val = mainInput.value.trim();
+  if (!val) { mainInput.focus(); return; }
+  if (!/^0x[a-fA-F0-9]{40}$/.test(val)) {
+    if (mainResult) {
+      mainResult.innerHTML = `<div class="rep-error">Please enter a valid Robinhood Chain contract address (0x followed by 40 hex characters).</div>`;
+      mainResult.classList.add('active');
+    }
+    mainInput.focus();
+    return;
+  }
+  mainScanning = true;
+  if (mainBtn) { mainBtn.disabled = true; mainBtn.textContent = 'Scanning…'; }
+  if (mainStatus) {
+    const txt = mainStatus.querySelector('.status-text');
+    if (txt) txt.textContent = 'Scanning on Robinhood Chain…';
+    mainStatus.classList.add('active');
+  }
+  if (mainResult) mainResult.classList.remove('active');
+  try {
+    const report = await runScan(val.toLowerCase(), (t) => {
+      const txt = mainStatus?.querySelector('.status-text');
+      if (txt) txt.textContent = t;
+    });
+    if (mainResult) {
+      renderMainReport(mainResult, report);
+      mainResult.classList.add('active');
+    }
+  } catch (err) {
+    if (mainResult) {
+      mainResult.innerHTML = `<div class="rep-error">${esc(err?.message || 'Scan failed. Check contract address.')}</div>`;
+      mainResult.classList.add('active');
+    }
+  } finally {
+    if (mainStatus) mainStatus.classList.remove('active');
+    if (mainBtn) { mainBtn.disabled = false; mainBtn.textContent = 'Run full scan'; }
+    mainScanning = false;
+  }
+}
+
+$$('[data-main-fill]').forEach(b => b.addEventListener('click', () => {
+  if (mainInput) {
+    mainInput.value = b.dataset.mainFill;
+    handleMainScan();
+  }
+}));
+
+if (mainBtn && mainInput) {
+  mainBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    handleMainScan();
+  });
+  mainInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleMainScan();
+    }
   });
 }
 
