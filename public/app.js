@@ -63,7 +63,7 @@ function setState(state) {
   document.body.dataset.state = state;
   const btn = $('#scanBtn');
   if (btn) btn.disabled = state === 'scanning';
-  if (state === 'scanning' || state === 'result' || state === 'error') {
+  if (state === 'error') {
     const el = $('#scanner') || $('#scanForm');
     if (el) el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
   }
@@ -1264,10 +1264,16 @@ function renderSpecimen(data) {
     specFoot.innerHTML = `Report generated from live RPC, Blockscout, DexScreener &amp; 𝕏 data. <a href="#scanner" class="hero-to-scanner" style="text-decoration:underline;font-weight:700">Open full report in Scanner ↗</a>`;
     specFoot.querySelector('.hero-to-scanner')?.addEventListener('click', (e) => {
       e.preventDefault();
-      $('#scanner')?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+      const sc = $('#scanner');
+      if (sc) {
+        const top = sc.getBoundingClientRect().top + window.pageYOffset - 80;
+        window.scrollTo({ top, behavior: reduce ? 'auto' : 'smooth' });
+      }
       if (input && form) {
         input.value = address;
-        form.requestSubmit();
+        setTimeout(() => {
+          form.requestSubmit();
+        }, 450);
       }
     });
   }
@@ -1444,22 +1450,12 @@ function renderMainReport(el, r) {
         ${links.map(l => `<a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer" class="chip"><span>${esc(l.label)}</span> ↗</a>`).join('')}
       </div>
       <div class="mr-footer-bar">
-        <span class="mr-cov">Data coverage: ${coverage.ok}/${coverage.total} sources on Robinhood Chain</span>
-        <a href="#scanner" class="main-to-scanner btn btn-sm btn-lime" style="text-decoration:none;font-size:13px;font-weight:700;">Open interactive console ↗</a>
+        <span class="mr-cov"><span class="dot" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--lime);margin-right:6px;"></span>Data coverage: ${coverage.ok}/${coverage.total} sources on Robinhood Chain</span>
       </div>
     </div>
   `;
 
   bindCopyButtons();
-
-  el.querySelector('.main-to-scanner')?.addEventListener('click', (e) => {
-    e.preventDefault();
-    $('#scanner')?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
-    if (input && form) {
-      input.value = address;
-      form.requestSubmit();
-    }
-  });
 }
 
 async function handleMainScan() {
