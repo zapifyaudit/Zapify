@@ -471,12 +471,17 @@ function generateFindings(c, e, m, f, s, addr) {
     } else pass('PAUSABLE', 'No pause function', 'Token transfers cannot be frozen.');
 
     if (c.has?.tradingSwitch && ownerActive) add('TRADING_SWITCH', 'medium', 'Trading can be disabled', 'Owner can flip trading switch.', explorerBase);
-    if (c.has?.txLimit) add('TX_LIMITS', 'low', 'Transaction size limits active', 'Max buy/sell limits exist.', explorerBase);
-    if (ownerActive) add('OWNER_ACTIVE', 'low', 'Ownership not renounced', `Owner is active: ${short(c.owner)}`, explorerBase);
-    else if (c.ownerRenounced) pass('OWNER_ACTIVE', 'Ownership renounced', `Sent to dead address: ${short(c.owner)}`);
+    if (ownerActive || (c.hasOwnerFn && !c.ownerRenounced)) {
+      add('OWNER_ACTIVE', 'low', 'Ownership not renounced', c.owner ? `Owner is active: ${short(c.owner)}` : 'Admin functions are controlled by an active owner.', explorerBase);
+    } else if (c.ownerRenounced) {
+      pass('OWNER_ACTIVE', 'Ownership renounced', `Sent to dead address: ${short(c.owner)}`);
+    }
 
-    if (e && e.verified === false) add('UNVERIFIED_SOURCE', 'medium', 'Contract source code is not verified', 'Bytecode cannot be read as source on Blockscout.', explorerBase);
-    else if (e && e.verified === true) pass('UNVERIFIED_SOURCE', 'Contract source verified', 'Source code verified on Blockscout.');
+    if (e && e.verified === true) {
+      pass('UNVERIFIED_SOURCE', 'Contract source verified', 'Source code verified on Blockscout.');
+    } else {
+      add('UNVERIFIED_SOURCE', 'medium', 'Contract source code is not verified', 'Bytecode cannot be verified as source code on Blockscout.', explorerBase);
+    }
   }
 
   // Market checks
@@ -485,6 +490,9 @@ function generateFindings(c, e, m, f, s, addr) {
     else {
       if (m.liquidityUsd < 1000) add('VERY_LOW_LIQUIDITY', 'high', 'Liquidity is critically low', `Only ${fmtUsd(m.liquidityUsd)} in liquidity.`, dexBase);
       else if (m.liquidityUsd < 10000) add('LOW_LIQUIDITY', 'medium', 'Liquidity is low', `${fmtUsd(m.liquidityUsd)} in liquidity.`, dexBase);
+      else if (m.fdv && m.liquidityUsd && (m.liquidityUsd / m.fdv < 0.01)) {
+        add('LOW_LIQUIDITY', 'medium', 'Low liquidity to valuation ratio', `Pool liquidity (${fmtUsd(m.liquidityUsd)}) is only ${(m.liquidityUsd / m.fdv * 100).toFixed(2)}% of FDV (${fmtUsd(m.fdv)}).`, dexBase);
+      }
 
       const txns = m.txns24;
       if (txns) {
@@ -586,6 +594,24 @@ function computeSubclass(f) {
 async function runScan(rawAddr) {
   const addr = lc(rawAddr);
   if (scanCache.has(addr)) return scanCache.get(addr);
+
+  // Try backend API first for full inspection and bypass browser CORS/Cloudflare limits
+  try {
+    const apiRes = await fetchJson('/api/scan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ address: addr })
+    }, 10000);
+    if (apiRes && apiRes.success && apiRes.score) {
+      updateStep(0, 'done', 'ok');
+      updateStep(1, 'done', 'ok');
+      updateStep(2, 'done', 'ok');
+      updateStep(3, 'done', 'ok');
+      updateStep(4, 'done', 'ok');
+      scanCache.set(addr, apiRes);
+      return apiRes;
+    }
+  } catch {}
 
   updateStep(0, 'active', 'reading…');
   appendLog('Contract', 'Reading bytecode and RPC…');

@@ -229,20 +229,20 @@ function generateFindings(c, e, m, f, s, addr) {
     }
 
     // OWNER_ACTIVE (weight: 2) — only if no other contract issue was flagged
-    if (ownerActive) {
+    if (ownerActive || (c.hasOwnerFn && !c.ownerRenounced)) {
       add('OWNER_ACTIVE', 'low', 'Ownership not renounced',
-        `Owner wallet is active: ${shortAddr(c.owner)}. Can still exercise any admin functions.`, explorerBase);
+        c.owner ? `Owner wallet is active: ${shortAddr(c.owner)}. Can still exercise any admin functions.` : 'Admin functions are controlled by an active owner.', explorerBase);
     } else if (c.ownerRenounced) {
       pass('OWNER_ACTIVE', 'Ownership renounced', `Sent to ${shortAddr(c.owner)} — no admin control.`);
     }
 
     // UNVERIFIED_SOURCE (weight: 4)
-    if (e && e.verified === false) {
-      add('UNVERIFIED_SOURCE', 'medium', 'Contract source not verified',
-        'Bytecode cannot be read as source. You cannot see what the contract actually does.', explorerBase);
-    } else if (e && e.verified === true) {
+    if (e && e.verified === true) {
       pass('UNVERIFIED_SOURCE', 'Contract source verified',
         'Source code matches the verified contract on Blockscout.');
+    } else {
+      add('UNVERIFIED_SOURCE', 'medium', 'Contract source not verified',
+        'Bytecode cannot be verified as source on Blockscout. You cannot see what the contract actually does.', explorerBase);
     }
   }
 
@@ -262,6 +262,9 @@ function generateFindings(c, e, m, f, s, addr) {
         // LOW_LIQUIDITY (weight: 3)
         add('LOW_LIQUIDITY', 'medium', 'Liquidity is low',
           `${fmtUsd(m.liquidityUsd)} in liquidity. Large exits could significantly move the price.`, dexBase);
+      } else if (m.fdv && m.liquidityUsd && (m.liquidityUsd / m.fdv < 0.01)) {
+        add('LOW_LIQUIDITY', 'medium', 'Low liquidity to valuation ratio',
+          `Pool liquidity (${fmtUsd(m.liquidityUsd)}) is only ${(m.liquidityUsd / m.fdv * 100).toFixed(2)}% of FDV (${fmtUsd(m.fdv)}).`, dexBase);
       }
 
       // NO_SELLS / SELLS_SUPPRESSED (hard gates, weight: 10 & 5)
