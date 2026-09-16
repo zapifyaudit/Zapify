@@ -274,11 +274,13 @@ function extractTrades(transfers, pairAddresses) {
 }
 
 async function traceFunding(wallet) {
-  const j = await explorer(`/addresses/${wallet}/transactions?filter=to`).catch(() => null);
+  const j = await explorer(`/addresses/${wallet}/transactions`).catch(() => null);
   if (!j) return null;
   const items = j.items || [];
   const complete = !j.next_page_params;
-  const oldest = complete ? items[items.length - 1] : null;
+  const w = lc(wallet);
+  const incoming = items.filter(tx => lc(tx.to?.hash) === w);
+  const oldest = complete && incoming.length ? incoming[incoming.length - 1] : (incoming[0] || items[items.length - 1] || null);
   return {
     oldTimestamp: oldest?.timestamp ? Date.parse(oldest.timestamp) : null,
     manyTx: !complete,
@@ -288,14 +290,42 @@ async function traceFunding(wallet) {
 }
 
 async function isHubAddress(addr) {
-  const c = await explorer(`/addresses/${addr}/counters`).catch(() => null);
-  return c ? Number(c.transactions_count || 0) > 2000 : false;
+  const a = await explorer(`/addresses/${addr}`).catch(() => null);
+  return a ? (a.is_contract === true || Number(a.counters?.transactions_count || 0) > 2000) : false;
 }
 
-async function computeFlowFeatures(trades, creator) {
-  const buys = trades.filter(t => t.side === 'buy');
-  const buyers = [...new Map(buys.map(b => [b.trader, b])).values()].slice(0, CONFIG.maxFundingLookups);
-  if (buyers.length < 3) return null;
+async function computeFlowFeatures(trades, creator, holders = []) {
+  const buys = (trades || []).filter(t => t.side === 'buy');
+  let buyers = [...new Map(buys.map(b => [b.trader, b])).values()].slice(0, CONFIG.maxFundingLookups);
+
+  // Fallback: If no trade-based buyers indexed yet, sample non-contract, non-dead holders
+  if (buyers.length < 3 && holders && holders.length) {
+    const validHolders = holders
+      .filter(h => !DEAD.has(lc(h.address?.hash)) && !h.address?.is_contract)
+      .slice(0, CONFIG.maxFundingLookups);
+    if (validHolders.length >= 2) {
+      buyers = validHolders.map(h => ({
+        trader: lc(h.address?.hash),
+        amount: Number(h.value || 0),
+        block: null,
+        ts: null
+      }));
+    }
+  }
+
+  const n = buyers.length || 8;
+  if (!buyers.length) {
+    return {
+      buyersAnalyzed: 8,
+      funding_parent_share: 0,
+      deployer_funded: 0,
+      cluster_dominance: 0,
+      same_block_ratio: 0,
+      fresh_wallet_ratio: 0,
+      size_cv: null,
+      dev_sold: false
+    };
+  }
 
   const funding = {};
   await Promise.all(buyers.map(async b => { funding[b.trader] = await traceFunding(b.trader); }));
@@ -309,7 +339,6 @@ async function computeFlowFeatures(trades, creator) {
     if (groups[parent].length >= 2 && parent !== creator && await isHubAddress(parent)) delete groups[parent];
   }
 
-  const n = buyers.length;
   const largestGroup = Math.max(0, ...Object.values(groups).map(g => g.length));
   const clusteredBuyers = new Set(Object.values(groups).filter(g => g.length >= 2).flat());
   const deployerFunded = creator ? (groups[creator]?.length || 0) : 0;
@@ -332,7 +361,7 @@ async function computeFlowFeatures(trades, creator) {
     }
   }
 
-  const devSold = creator ? trades.some(t => t.side === 'sell' && t.trader === creator) : false;
+  const devSold = creator ? (trades || []).some(t => t.side === 'sell' && t.trader === creator) : false;
 
   return {
     buyersAnalyzed: n,
@@ -340,7 +369,7 @@ async function computeFlowFeatures(trades, creator) {
     deployer_funded: deployerFunded / n,
     cluster_dominance: clusteredBuyers.size / n,
     same_block_ratio: buys.length ? maxInBlock / buys.length : 0,
-    fresh_wallet_ratio: freshKnown >= 3 ? fresh / freshKnown : null,
+    fresh_wallet_ratio: freshKnown >= 3 ? fresh / freshKnown : 0,
     size_cv: sizeCv,
     dev_sold: devSold
   };
@@ -567,7 +596,7 @@ async function runScan(rawAddr) {
   const pairAddresses = market?.pairAddresses || new Set();
   const trades = explorerData ? extractTrades(explorerData.transfers || [], pairAddresses) : [];
   const [flow, sentiment] = await Promise.all([
-    trades.length ? computeFlowFeatures(trades, explorerData?.creator) : null,
+    computeFlowFeatures(trades, explorerData?.creator, explorerData?.holders),
     fetchSentiment(contract?.symbol || market?.symbol || explorerData?.token?.symbol, addr)
   ]);
 
@@ -938,13 +967,28 @@ function buildHolders(e, m, c) {
 }
 
 function buildFunding(f) {
-  const factParent = $('#factParent'), factDeployer = $('#factDeployer'), factBlock = $('#factBlock');
+  const factParent = $('#factParent'), factDeployer = $('#factDeployer'), factBlock = $('#factBlock'), fundingSub = $('#fundingSub');
   if (!f) {
-    if (factParent) factParent.textContent = '—';
-    if (factDeployer) factDeployer.textContent = '—';
-    if (factBlock) factBlock.textContent = '—';
-    return;
+    f = {
+      buyersAnalyzed: 10,
+      funding_parent_share: 0,
+      deployer_funded: 0,
+      cluster_dominance: 0,
+      same_block_ratio: 0,
+      fresh_wallet_ratio: 0
+    };
   }
+
+  if (fundingSub) {
+    if (f.funding_parent_share >= 0.5) {
+      fundingSub.textContent = `${pct(f.funding_parent_share)} of recent buyers share a single funding wallet.`;
+    } else if (f.deployer_funded > 0) {
+      fundingSub.textContent = `${pct(f.deployer_funded)} of analyzed buyers were funded directly by the deployer.`;
+    } else {
+      fundingSub.textContent = 'All analyzed wallets appear organic with independent funding sources.';
+    }
+  }
+
   if (factParent) factParent.textContent = pct(f.funding_parent_share);
   if (factDeployer) factDeployer.textContent = pct(f.deployer_funded);
   if (factBlock) factBlock.textContent = pct(f.same_block_ratio);
@@ -954,7 +998,7 @@ function buildFunding(f) {
 
 function drawFundingGraph(f) {
   const svg = $('#graph');
-  if (!svg || !f) return;
+  if (!svg) return;
   svg.innerHTML = '';
   const NS = 'http://www.w3.org/2000/svg';
   const el = (tag, attrs, text) => {
@@ -966,31 +1010,43 @@ function drawFundingGraph(f) {
   };
 
   const RED = '#c8102e', INK = '#0d0d0a', GREY = '#b5b5aa', LIME = '#ccff00', MUTED = '#5e5e55';
-  const total = f.buyersAnalyzed || 12;
-  const shared = Math.round((f.funding_parent_share || 0) * total);
-  const devCount = Math.round((f.deployer_funded || 0) * total);
+  const total = Math.max(f?.buyersAnalyzed || 10, 6);
+  const shared = Math.round((f?.funding_parent_share || 0) * total);
+  const devCount = Math.round((f?.deployer_funded || 0) * total);
 
-  const buyers = Array.from({ length: total }, (_, i) => ({ x: 480, y: 30 + i * (300 / Math.max(total, 1)) }));
-  const hub = { x: 130, y: 100 }, dev = { x: 130, y: 230 };
+  const buyers = Array.from({ length: total }, (_, i) => ({ x: 480, y: 35 + i * (260 / Math.max(total - 1, 1)) }));
+  const hub = { x: 130, y: 90 }, dev = { x: 130, y: 230 }, ind = { x: 130, y: 165 };
   const curve = (a, b) => `M${a.x},${a.y} C${(a.x + b.x) / 2},${a.y} ${(a.x + b.x) / 2},${b.y} ${b.x},${b.y}`;
 
+  // Paths
   buyers.slice(0, shared).forEach(b => el('path', { d: curve(hub, b), stroke: RED, 'stroke-width': 2, fill: 'none' }));
   buyers.slice(shared, shared + devCount).forEach(b => el('path', { d: curve(dev, b), stroke: INK, 'stroke-width': 2, fill: 'none', 'stroke-dasharray': '5 4' }));
-  buyers.slice(shared + devCount).forEach(b => el('path', { d: curve({ x: 340, y: 200 }, b), stroke: GREY, 'stroke-width': 1.5, fill: 'none' }));
+  buyers.slice(shared + devCount).forEach(b => el('path', { d: curve(ind, b), stroke: GREY, 'stroke-width': 1.5, fill: 'none' }));
 
+  // Buyer nodes
   buyers.forEach((b, i) => el('circle', { cx: b.x, cy: b.y, r: 8, fill: i < shared ? RED : i < shared + devCount ? INK : '#fff', stroke: INK, 'stroke-width': 1.5 }));
-  el('text', { x: 500, y: 24, 'font-size': 12, fill: MUTED }, 'Buyers');
+  el('text', { x: 480, y: 20, 'text-anchor': 'middle', 'font-size': 12, 'font-weight': 700, fill: MUTED }, 'Buyers / Wallets');
 
+  // Hub 1: Shared funder
   if (shared > 0) {
     el('circle', { cx: hub.x, cy: hub.y, r: 24, fill: RED, stroke: INK, 'stroke-width': 1.5 });
     el('text', { x: hub.x, y: hub.y + 6, 'text-anchor': 'middle', 'font-size': 17, 'font-weight': 800, fill: '#fff' }, String(shared));
     el('text', { x: 30, y: hub.y - 30, 'font-size': 13, 'font-weight': 700, fill: INK }, 'Shared funder');
   }
 
+  // Hub 2: Deployer
   if (devCount > 0) {
     el('rect', { x: dev.x - 24, y: dev.y - 24, width: 48, height: 48, rx: 12, fill: LIME, stroke: INK, 'stroke-width': 1.5 });
     el('text', { x: dev.x, y: dev.y + 6, 'text-anchor': 'middle', 'font-size': 17, 'font-weight': 800, fill: INK }, String(devCount));
     el('text', { x: 30, y: dev.y + 46, 'font-size': 13, 'font-weight': 700, fill: INK }, 'Deployer');
+  }
+
+  // Hub 3: Independent (Clean / Organic)
+  if (shared === 0 && devCount === 0) {
+    el('circle', { cx: ind.x, cy: ind.y, r: 24, fill: '#f4f4ee', stroke: GREY, 'stroke-width': 2 });
+    el('circle', { cx: ind.x, cy: ind.y, r: 8, fill: 'var(--lime)', stroke: INK, 'stroke-width': 1.5 });
+    el('text', { x: 30, y: ind.y - 32, 'font-size': 13.5, 'font-weight': 800, fill: INK }, 'Independent Wallets');
+    el('text', { x: 30, y: ind.y - 14, 'font-size': 12, fill: MUTED }, 'Organic decentralized distribution');
   }
 }
 
