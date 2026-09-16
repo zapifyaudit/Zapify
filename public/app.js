@@ -1360,16 +1360,6 @@ function renderMainReport(el, r) {
   const price = m?.priceUsd != null ? '$' + Number(m.priceUsd).toPrecision(4) : '—';
   const liquidity = m?.liquidityUsd != null ? fmtUsd(m.liquidityUsd) : 'unavailable';
 
-  const rows = [
-    ['Network', 'Robinhood Chain (4663)'],
-    ['Price', price],
-    ['Liquidity', liquidity],
-    ['Holders', typeof holders === 'number' ? holders.toLocaleString('en-US') : String(holders)],
-    ['Source verified', verified],
-    ['Buyer pattern', f ? (score.subclass || 'Traced') : 'Not enough trades'],
-    ['𝕏 sentiment', s?.posts > 0 ? `${s.label} (${s.posts} posts)` : 'No active discussion']
-  ];
-
   const activeFindings = findings.filter(item => item.severity !== 'pass');
   const shownFindings = activeFindings.length > 0 ? activeFindings : findings.slice(0, 4);
 
@@ -1379,24 +1369,88 @@ function renderMainReport(el, r) {
       ? { label: 'DexScreener', url: m?.dexUrl || `https://dexscreener.com/robinhood/${m.primary.pairAddress}` }
       : null,
     sym && /^[A-Za-z]/.test(sym) ? { label: `𝕏 $${sym}`, url: `https://x.com/search?q=%24${encodeURIComponent(sym)}&f=live` } : null,
-    address ? { label: '𝕏 CA Search', url: `https://x.com/search?q=${encodeURIComponent(address)}&f=live` } : null
+    address ? { label: '𝕏 Contract', url: `https://x.com/search?q=${encodeURIComponent(address)}&f=live` } : null
   ].filter(Boolean);
 
   el.innerHTML = `
-    <div class="rep-top">
-      <div class="rep-id"><strong>$${esc(sym)}</strong><span>${esc(name)}</span></div>
-      <span class="rep-verdict lv-${level}">${esc(verdict)}</span>
+    <div class="mr-header">
+      <div class="mr-token">
+        <div class="mr-avatar">${esc(sym.slice(0, 2).toUpperCase())}</div>
+        <div>
+          <div class="mr-symbol-row">
+            <h3 class="mr-symbol">$${esc(sym)}</h3>
+            <button type="button" class="chip copy" data-copy="${esc(address)}" style="cursor:pointer;font-size:12px;padding:3px 9px;">${short(address)}</button>
+          </div>
+          <p class="mr-name">${esc(name)} • Robinhood Chain (4663)</p>
+        </div>
+      </div>
+      <div class="mr-score-box">
+        <span class="verdict ${level}">${esc(verdict)}</span>
+        <div class="mr-score-num"><b>${sv}</b><span> / 100</span></div>
+      </div>
     </div>
-    <div class="rep-score">
-      <div class="rep-bar" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${sv}" aria-label="Risk score"><span style="width:${sv}%"></span></div>
-      <b>${sv} / 100</b>
+
+    <div class="mr-meter-wrap">
+      <div class="mr-meter-bar">
+        <div class="mr-meter-fill ${level}" style="width:${Math.max(sv, 4)}%"></div>
+      </div>
+      <div class="mr-meter-labels">
+        <span>Low risk (0–29)</span>
+        <span>Caution (30–59)</span>
+        <span>High risk (60–100)</span>
+      </div>
     </div>
-    ${rows.map(([k, v]) => `<div class="mini-row"><span>${k}</span><span>${esc(v)}</span></div>`).join('')}
-    <div class="rep-sub">${shownFindings.length ? `Findings (${shownFindings.length})` : 'Findings'}</div>
-    <ul class="rep-findings">${shownFindings.length ? shownFindings.map(item => `<li class="sev-${item.severity}"><span class="sev-tag">${item.severity}</span>${esc(item.title || item.text || item.description)}</li>`).join('') : '<li class="sev-low"><span class="sev-tag">ok</span>No red flags in the checks that ran.</li>'}</ul>
-    <div class="rep-links">${links.map(l => `<a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">${esc(l.label)} ↗</a>`).join('')}</div>
-    <div class="rep-foot">Coverage ${coverage.ok}/${coverage.total} sources on Robinhood Chain. <a href="#scanner" class="main-to-scanner" style="text-decoration:underline;font-weight:700">Open in Scanner Console ↗</a></div>
+
+    <div class="mr-stats-grid">
+      <div class="mr-stat">
+        <span class="mr-stat-label">Price &amp; Liquidity</span>
+        <b class="mr-stat-val">${esc(price)} <small style="font-size:12.5px;color:var(--muted);font-weight:500;">(${esc(liquidity)})</small></b>
+      </div>
+      <div class="mr-stat">
+        <span class="mr-stat-label">Holders</span>
+        <b class="mr-stat-val">${typeof holders === 'number' ? holders.toLocaleString('en-US') : esc(holders)}</b>
+      </div>
+      <div class="mr-stat">
+        <span class="mr-stat-label">Buyer Pattern</span>
+        <b class="mr-stat-val">${esc(f ? (score.subclass || 'Traced') : 'Organic flow')}</b>
+      </div>
+      <div class="mr-stat">
+        <span class="mr-stat-label">𝕏 Sentiment</span>
+        <b class="mr-stat-val">${s?.posts > 0 ? `${esc(s.label)} (${s.posts} posts)` : 'No active chatter'}</b>
+      </div>
+    </div>
+
+    <div class="mr-findings-block">
+      <div class="mr-findings-head">
+        <strong>Risk &amp; Security Findings</strong>
+        <span class="mr-findings-count">${shownFindings.length} finding${shownFindings.length !== 1 ? 's' : ''}</span>
+      </div>
+      <ul class="mr-findings-list">
+        ${shownFindings.map(item => `
+          <li class="mr-finding-item">
+            <span class="sev-tag ${item.severity}">${item.severity === 'pass' ? 'pass' : item.severity}</span>
+            <div class="mr-finding-copy">
+              <strong>${esc(item.title || item.text || item.code)}</strong>
+              ${item.description ? `<p>${esc(item.description)}</p>` : ''}
+            </div>
+          </li>
+        `).join('')}
+      </ul>
+    </div>
+
+    <div class="mr-footer">
+      <div class="mr-links">
+        <span style="font-size:12.5px;font-weight:700;color:var(--muted);">Verify evidence:</span>
+        ${links.map(l => `<a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer" class="chip"><span>${esc(l.label)}</span> ↗</a>`).join('')}
+      </div>
+      <div class="mr-footer-bar">
+        <span class="mr-cov">Data coverage: ${coverage.ok}/${coverage.total} sources on Robinhood Chain</span>
+        <a href="#scanner" class="main-to-scanner btn btn-sm btn-lime" style="text-decoration:none;font-size:13px;font-weight:700;">Open interactive console ↗</a>
+      </div>
+    </div>
   `;
+
+  bindCopyButtons();
 
   el.querySelector('.main-to-scanner')?.addEventListener('click', (e) => {
     e.preventDefault();

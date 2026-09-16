@@ -458,56 +458,87 @@ body[data-state="result"] .rise.d2{ animation-delay:.12s; }
 /* ===== SCAN BEFORE YOU BUY SECTION ===== */
 .scan-box{ display:grid; grid-template-columns: .85fr 1.15fr; gap:48px; align-items:start; }
 @media (max-width:960px){ .scan-box{ grid-template-columns:1fr; gap:32px; } }
-.scan-box .lede{ margin-top:18px; }
+.scan-box .lede{ margin-top:14px; font-size:17.5px; color:var(--muted); line-height:1.55; }
 @media (min-width:961px){ .scan-box > div:first-child{ position:sticky; top:100px; } }
-.scan-card{ border:1.5px solid var(--ink); border-radius: var(--r-lg); padding:30px; background: var(--white); }
+
+.scan-card{ border:1.5px solid var(--ink); border-radius: var(--r-lg); padding:32px; background: var(--white); box-shadow: 0 4px 20px rgba(13,13,10,0.04); }
 @media (max-width:520px){ .scan-card{ padding:20px; } }
-.scan-card label{ display:block; font-size:14px; font-weight:600; margin-bottom:10px; }
+.card-label-row{ display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; gap:8px; flex-wrap:wrap; }
+.card-label-row label{ font-size:14.5px; font-weight:700; color:var(--fg); margin-bottom:0; }
 .scan-card .scan-row{ margin-top:0; max-width:none; display:flex; gap:10px; }
-@media (max-width:520px){ .scan-card .scan-row{ flex-direction:column; } }
-.scan-card .input{ flex:1; min-width:0; padding:15px 18px; border-radius: var(--r-sm); border:1.5px solid var(--line); background: var(--paper); font-size:15px; transition: border-color .15s, background .15s; }
-.scan-card .input:focus{ outline:none; border-color: var(--ink); background: var(--white); }
-.scan-card .input::placeholder{ color:#8a8a80; }
-.example-row{ margin-top:12px; font-size:13px; color: var(--muted); display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-.example-chip{ font-size:13px; font-weight:600; background: var(--paper); border:1px solid var(--line); border-radius:99px; padding:5px 12px; cursor:pointer; }
-.example-chip:hover{ border-color: var(--ink); }
-.empty-hint{ margin-top:22px; padding:18px; border:1px dashed var(--line); border-radius: var(--r-md); font-size:14px; color: var(--muted); }
-.scan-status-line{ display:none; align-items:center; gap:10px; margin-top:14px; font-size:14px; font-weight:600; }
-.scan-status-line.active{ display:flex; }
-.spin-ring{ width:14px; height:14px; border-radius:50%; border:2px solid var(--lime); border-top-color: var(--ink); animation: spin .8s linear infinite; }
-.mini-result{ display:none; margin-top:16px; background: var(--white); border:1px solid var(--line); border-radius: var(--r-md); padding:18px 20px; text-align:left; }
+@media (max-width:600px){ .scan-card .scan-row{ flex-direction:column; } }
+.scan-card .field{ flex:1; min-width:0; position:relative; }
+.scan-card .field input{ width:100%; padding:16px 18px 16px 48px; border-radius: var(--r-sm); border:1.5px solid var(--ink); background: var(--paper); font-size:15.5px; transition: background .15s, box-shadow .15s; }
+.scan-card .field input:focus{ outline:none; background: var(--white); box-shadow: 0 0 0 3px rgba(204,255,0,0.5); }
+.scan-card .field input::placeholder{ color:#8a8a80; }
+.scan-card .field svg{ position:absolute; left:16px; top:50%; transform: translateY(-50%); width:19px; height:19px; pointer-events:none; color:var(--muted); }
+
+.example-row{ margin-top:14px; font-size:13px; color: var(--muted); display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.example-row span{ font-weight:600; }
+.example-row .chip{ cursor:pointer; background:var(--white); border:1px solid var(--line); font-size:13px; padding:5px 12px; transition:border-color .15s, background .15s; }
+.example-row .chip:hover{ border-color:var(--ink); background:var(--paper); }
+
+/* Empty state card */
+.empty-hint{ margin-top:22px; padding:22px 20px; background:var(--paper); border:1px solid var(--line); border-radius: var(--r-md); display:flex; gap:16px; align-items:flex-start; font-size:14px; color: var(--muted); }
+.empty-hint svg{ flex-shrink:0; width:24px; height:24px; color:var(--muted); margin-top:2px; }
+.empty-hint strong{ display:block; color:var(--ink); font-size:14.5px; margin-bottom:3px; }
+.empty-hint p{ margin:0; line-height:1.45; }
+
+/* Status loading line */
+.scan-status-line{ display:none; align-items:center; gap:14px; margin-top:18px; padding:16px 18px; border-radius:var(--r-md); background:var(--paper); border:1px solid var(--line); font-size:14px; }
+.scan-status-line.active{ display:flex; animation: rise .3s var(--ease); }
+.spin-ring{ width:18px; height:18px; border-radius:50%; border:2.5px solid var(--lime); border-top-color: var(--ink); animation: spin .8s linear infinite; flex-shrink:0; }
+.status-info{ display:flex; flex-direction:column; gap:2px; }
+.status-info strong{ color:var(--ink); font-weight:700; font-size:14px; }
+.status-info small{ color:var(--muted); font-size:12.5px; }
+
+/* Result card styling */
+.mini-result{ display:none; margin-top:22px; background: var(--white); border:1.5px solid var(--ink); border-radius: var(--r-lg); padding:26px; text-align:left; box-shadow: 0 4px 16px rgba(13,13,10,0.04); }
 .mini-result.active{ display:block; animation: rise .35s var(--ease); }
 .mini-result.active + .empty-hint{ display:none; }
-.mini-row{ display:flex; justify-content:space-between; gap:16px; font-size:13.5px; padding:5px 0; color: var(--muted); }
-.mini-row span:last-child{ color: var(--fg); font-weight:600; text-align:right; }
-.rep-top{ display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:10px; }
-.rep-id{ display:flex; flex-direction:column; min-width:0; }
-.rep-id strong{ font-size:18px; font-stretch:112%; overflow-wrap:anywhere; }
-.rep-id span{ font-size:13px; color: var(--muted); overflow-wrap:anywhere; }
-.rep-verdict{ font-size:12px; font-weight:700; padding:4px 11px; border-radius:999px; white-space:nowrap; }
-.rep-verdict.lv-low{ background: var(--lime); color: var(--ink); }
-.rep-verdict.lv-medium{ background: var(--ink); color: var(--lime); }
-.rep-verdict.lv-high{ background: var(--danger); color: var(--white); }
-.rep-score{ display:flex; align-items:center; gap:12px; margin-bottom:10px; font-size:14px; }
-.rep-bar{ flex:1; height:8px; border-radius:99px; background: var(--paper); border:1px solid var(--line); overflow:hidden; }
-.rep-bar span{ display:block; height:100%; background: var(--ink); border-radius:99px; transition: width .6s var(--ease); }
-.rep-sub{ margin:16px 0 8px; font-size:13px; font-weight:700; }
-.rep-findings, .rep-posts{ list-style:none; display:flex; flex-direction:column; gap:7px; }
-.rep-findings li{ display:flex; gap:9px; align-items:baseline; font-size:13.5px; line-height:1.45; }
-.rep-findings .sev-tag{ flex-shrink:0; font-size:11px; font-weight:700; padding:1px 8px; border-radius:999px; border:1px solid var(--line); background: var(--paper); color: var(--muted); }
-.rep-findings .sev-high .sev-tag{ background: var(--danger); color: var(--white); border-color: var(--danger); }
-.rep-findings .sev-medium .sev-tag{ background: var(--ink); color: var(--lime); border-color: var(--ink); }
-.rep-findings .sev-low .sev-tag{ background: var(--lime); color: var(--ink); border-color: var(--lime); }
-.rep-posts li{ font-size:13px; color: var(--muted); line-height:1.45; display:flex; gap:9px; }
-.rep-posts em{ font-style:normal; color: var(--fg); }
-.rep-dot{ width:8px; height:8px; border-radius:50%; background: var(--line); flex-shrink:0; margin-top:6px; }
-.rep-dot.pos{ background: var(--lime); box-shadow: 0 0 0 1.5px var(--ink); }
-.rep-dot.neg{ background: var(--danger); }
-.rep-links{ display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; }
-.rep-links a{ font-size:13px; font-weight:600; padding:5px 11px; border-radius:99px; border:1px solid var(--line); }
-.rep-links a:hover{ border-color: var(--ink); }
-.rep-foot{ margin-top:12px; font-size:12.5px; color: var(--muted); }
-.rep-error{ font-size:14px; color: var(--danger); font-weight:600; padding:8px 0; }
+
+/* Mini result elements */
+.mr-header{ display:flex; justify-content:space-between; align-items:flex-start; gap:14px; padding-bottom:18px; border-bottom:1px solid var(--line); }
+@media (max-width:560px){ .mr-header{ flex-direction:column; } }
+.mr-token{ display:flex; align-items:center; gap:14px; min-width:0; }
+.mr-avatar{ width:48px; height:48px; border-radius:14px; background:var(--lime); border:1.5px solid var(--ink); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:18px; font-stretch:115%; flex-shrink:0; }
+.mr-symbol-row{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.mr-symbol{ font-size:24px; font-weight:800; font-stretch:115%; line-height:1; letter-spacing:-0.02em; }
+.mr-name{ font-size:13px; color:var(--muted); margin-top:4px; overflow-wrap:anywhere; }
+.mr-score-box{ display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex-shrink:0; }
+@media (max-width:560px){ .mr-score-box{ align-items:flex-start; width:100%; flex-direction:row; justify-content:space-between; } }
+.mr-score-num{ font-size:28px; font-stretch:115%; font-weight:800; line-height:1; letter-spacing:-0.02em; }
+.mr-score-num span{ font-size:14px; color:var(--muted); font-weight:600; }
+
+.mr-meter-wrap{ margin:18px 0 20px; }
+.mr-meter-bar{ height:10px; border-radius:99px; background:var(--paper); border:1px solid var(--line); overflow:hidden; }
+.mr-meter-fill{ height:100%; border-radius:99px; transition: width .8s var(--ease); }
+.mr-meter-fill.low{ background:var(--lime); }
+.mr-meter-fill.medium{ background:var(--ink); }
+.mr-meter-fill.high{ background:var(--danger); }
+.mr-meter-labels{ display:flex; justify-content:space-between; font-size:11.5px; color:var(--muted); margin-top:6px; }
+
+.mr-stats-grid{ display:grid; grid-template-columns: repeat(2, 1fr); gap:10px; margin-bottom:20px; }
+@media (max-width:560px){ .mr-stats-grid{ grid-template-columns:1fr; } }
+.mr-stat{ background:var(--paper); border:1px solid var(--line); border-radius:var(--r-sm); padding:12px 14px; display:flex; flex-direction:column; gap:4px; }
+.mr-stat-label{ font-size:12px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:0.04em; }
+.mr-stat-val{ font-size:16px; font-weight:750; color:var(--fg); }
+
+.mr-findings-block{ border-top:1px solid var(--line); padding-top:18px; margin-top:18px; }
+.mr-findings-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+.mr-findings-head strong{ font-size:15px; font-weight:750; font-stretch:110%; }
+.mr-findings-count{ font-size:12px; color:var(--muted); }
+.mr-findings-list{ list-style:none; display:flex; flex-direction:column; gap:8px; }
+.mr-finding-item{ display:grid; grid-template-columns: auto 1fr; gap:10px; align-items:start; padding:10px 12px; border-radius:var(--r-sm); background:var(--paper); border:1px solid var(--line); font-size:13.5px; line-height:1.45; }
+.mr-finding-copy strong{ display:block; font-size:13.5px; font-weight:700; color:var(--fg); }
+.mr-finding-copy p{ font-size:12.5px; color:var(--muted); margin-top:2px; }
+
+.mr-footer{ margin-top:20px; padding-top:16px; border-top:1px solid var(--line); display:flex; flex-direction:column; gap:14px; }
+.mr-links{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+.mr-footer-bar{ display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
+.mr-cov{ font-size:12.5px; color:var(--muted); }
+
+.rep-error{ font-size:14px; color: var(--danger); font-weight:600; padding:14px 16px; background:#fff5f5; border:1px solid #fed7d7; border-radius:var(--r-sm); }
 
 /* Scroll offset for clean navbar anchors */
 #top, #checks, #scanner, #how, #scan, #faq {
@@ -945,23 +976,48 @@ body[data-state="result"] .rise.d2{ animation-delay:.12s; }
 <section class="section" id="scan" aria-labelledby="scan-title">
   <div class="wrap scan-box">
     <div>
+      <span class="hero-tag" style="margin-bottom:14px;"><span class="dot"></span>Instant Token Audit</span>
       <h2 class="display" id="scan-title">Scan before<br>you buy.</h2>
-      <p class="lede">Paste a contract address. The full report lists every finding, the posts that carried the most weight, and links so you can check the evidence yourself.</p>
+      <p class="lede">Paste any Robinhood Chain contract address. Zapify checks contract powers, holder spread, liquidity depth, coordinated buyer patterns, and 𝕏 sentiment in seconds.</p>
+      <ul class="assure" style="margin-top:24px;">
+        <li><svg aria-hidden="true"><use href="#tick"/></svg>Fast public RPC inspection</li>
+        <li><svg aria-hidden="true"><use href="#tick"/></svg>Blockscout &amp; DexScreener verified</li>
+        <li><svg aria-hidden="true"><use href="#tick"/></svg>100% free &amp; read-only (no wallet needed)</li>
+      </ul>
     </div>
     <div class="scan-card">
-      <label for="mainInput">Robinhood Chain token contract address</label>
+      <div class="card-label-row">
+        <label for="mainInput">Robinhood Chain token contract address</label>
+        <span class="chip" style="font-size:12px;padding:3px 9px;"><span class="dot"></span>Chain 4663</span>
+      </div>
       <div class="scan-row">
-        <input type="text" class="input" id="mainInput" placeholder="0x…" autocomplete="off" spellcheck="false">
+        <div class="field">
+          <svg aria-hidden="true"><use href="#lens"/></svg>
+          <input type="text" class="input" id="mainInput" placeholder="Paste token contract address (0x…)" autocomplete="off" spellcheck="false">
+        </div>
         <button class="btn btn-lime" id="mainScanBtn" type="button">Run full scan</button>
       </div>
       <div class="example-row">
-        <span>Try an example:</span>
-        <button type="button" class="example-chip" data-main-fill="0x716d3aea78a8e767b127ec0b2916dbbe7383a757">$SPAWND (0x716d…a757)</button>
-        <button type="button" class="example-chip" data-main-fill="0x88ad4a868ff114ab811eb7754f92bc31cb7f9062">$STANDARD (0x88ad…9062)</button>
+        <span>Try examples:</span>
+        <button type="button" class="chip" data-main-fill="0x88ad4a868ff114ab811eb7754f92bc31cb7f9062"><span class="dot"></span>1. $STANDARD (Clean)</button>
+        <button type="button" class="chip" data-main-fill="0x3f2a58b8d41e738c6bf656a81e35a092891c9c41"><span class="dot" style="background:var(--danger)"></span>2. $EXAMPLE (High risk)</button>
+        <button type="button" class="chip" data-main-fill="0x716d3aea78a8e767b127ec0b2916dbbe7383a757"><span class="dot" style="background:#f59e0b"></span>3. $SPAWND (DEX Pair)</button>
       </div>
-      <div class="scan-status-line" id="mainStatus" role="status" aria-live="polite"><span class="spin-ring"></span><span class="status-text">Scanning on Robinhood Chain…</span></div>
+      <div class="scan-status-line" id="mainStatus" role="status" aria-live="polite">
+        <div class="spin-ring"></div>
+        <div class="status-info">
+          <strong class="status-text">Scanning on Robinhood Chain…</strong>
+          <small>Reading bytecode, explorer, DexScreener &amp; 𝕏 sentiment</small>
+        </div>
+      </div>
       <div class="mini-result" id="mainResult" aria-live="polite"></div>
-      <p class="empty-hint" id="mainEmptyHint">Your report will appear here. Nothing is stored, and no wallet connection is needed.</p>
+      <div class="empty-hint" id="mainEmptyHint">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        <div>
+          <strong>Ready to scan any Robinhood Chain token</strong>
+          <p>Paste a contract address above or pick an example to generate an instant risk audit. No sign-in or wallet needed.</p>
+        </div>
+      </div>
     </div>
   </div>
 </section>
