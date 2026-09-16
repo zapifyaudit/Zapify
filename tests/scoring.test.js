@@ -28,4 +28,12 @@ assert(subCoord === 'Coordinated', 'Medium cluster/funding share should be Coord
 const subExtract = computeSubclass({ funding_parent_share: 0.65, cluster_dominance: 0.5 });
 assert(subExtract === 'Extraction', 'High cluster/funding share should be Extraction');
 
+// Test 5: Coordinated buying produces weight 2, score > 0 (not 0)
+const sCoord = computeScore([{ code: 'COORDINATED_BUYING', severity: 'medium' }]);
+assert(sCoord.value === 13 && sCoord.verdict === 'Low risk', 'COORDINATED_BUYING should yield score 13');
+
+// Test 6: CLUSTER_DOMINANCE is a hard gate
+const sDominance = computeScore([{ code: 'CLUSTER_DOMINANCE', severity: 'high' }]);
+assert(sDominance.value >= 80 && sDominance.verdict === 'High risk', 'CLUSTER_DOMINANCE must trigger hard gate (>=80)');
+
 console.log('✅ Scoring engine tests passed!');

@@ -347,8 +347,8 @@ function generateFindings(c, e, m, f, s, addr) {
       add('SHARED_FUNDING_PARENT', 'high', 'Buyers share a common funding wallet',
         `${pct(f.funding_parent_share)} of sampled buyers trace back to the same funding source.`,
         explorerFundingUrl);
-    } else if (f.funding_parent_share >= 0.3) {
-      add('COORDINATED_BUYING', 'medium', 'Possible coordinated buying',
+    } else if (f.funding_parent_share >= 0.2) {
+      add('COORDINATED_BUYING', 'medium', 'Coordinated buying detected',
         `${pct(f.funding_parent_share)} of buyers share a common funder — suggests coordination.`,
         explorerFundingUrl);
     }
@@ -365,8 +365,8 @@ function generateFindings(c, e, m, f, s, addr) {
       add('CLUSTER_DOMINANCE', 'high', 'Wallet cluster dominates trading',
         `${pct(f.cluster_dominance)} of buyers are in related wallet clusters.`,
         explorerFundingUrl);
-    } else if (f.cluster_dominance >= 0.3) {
-      add('COORDINATED_BUYING', 'medium', 'Wallet cluster activity',
+    } else if (f.cluster_dominance >= 0.3 && !findings.some(x => x.code === 'COORDINATED_BUYING')) {
+      add('COORDINATED_BUYING', 'medium', 'Coordinated buying detected',
         `${pct(f.cluster_dominance)} of buyers appear to be acting in coordination.`,
         explorerFundingUrl);
     }
@@ -386,7 +386,7 @@ function generateFindings(c, e, m, f, s, addr) {
 
     // FRESH_WALLETS_RATIO (weight: 2)
     if (f.fresh_wallet_ratio !== null && f.fresh_wallet_ratio >= 0.5) {
-      add('FRESH_WALLETS_RATIO', 'low', 'Many buyers used fresh wallets',
+      add('FRESH_WALLETS_RATIO', 'medium', 'Many buyers used fresh wallets',
         `${pct(f.fresh_wallet_ratio)} of buyers used wallets that received their first ETH within 24h of buying.`,
         explorerFundingUrl);
     }
@@ -423,6 +423,14 @@ function generateFindings(c, e, m, f, s, addr) {
       add('NEGATIVE_SENTIMENT', 'medium', 'Negative community sentiment',
         `Weighted sentiment score is ${s.score.toFixed(2)} — community is predominantly bearish or warning.`, null);
     }
+  }
+
+  // Ensure subclass consistency with findings
+  const sub = computeSubclass(f);
+  if (sub === 'Coordinated' && !findings.some(x => x.code === 'COORDINATED_BUYING' || x.code === 'SHARED_FUNDING_PARENT' || x.code === 'CLUSTER_DOMINANCE')) {
+    add('COORDINATED_BUYING', 'medium', 'Coordinated buying detected', 'Early buyer wallets show coordinated clustering or shared funding.', `${tokenBase}?tab=token_transfers`);
+  } else if (sub === 'Extraction' && !findings.some(x => x.code === 'SHARED_FUNDING_PARENT' || x.code === 'CLUSTER_DOMINANCE')) {
+    add('CLUSTER_DOMINANCE', 'high', 'Wallet cluster dominates trading', 'Early buyer wallets exhibit dominant extraction clustering.', `${tokenBase}?tab=token_transfers`);
   }
 
   return findings;

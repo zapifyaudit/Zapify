@@ -520,13 +520,24 @@ function generateFindings(c, e, m, f, s, addr) {
   // Funding checks
   if (f) {
     const fundingUrl = `${tokenBase}?tab=token_transfers`;
-    if (f.funding_parent_share >= 0.5) add('SHARED_FUNDING_PARENT', 'high', 'Buyers share a common funding wallet', `${pct(f.funding_parent_share)} of buyers share a funder.`, fundingUrl);
-    else if (f.funding_parent_share >= 0.3) add('COORDINATED_BUYING', 'medium', 'Possible coordinated buying', `${pct(f.funding_parent_share)} share a funder.`, fundingUrl);
+    if (f.funding_parent_share >= 0.5) {
+      add('SHARED_FUNDING_PARENT', 'high', 'Buyers share a common funding wallet', `${pct(f.funding_parent_share)} of buyers share a funder.`, fundingUrl);
+    } else if (f.funding_parent_share >= 0.2) {
+      add('COORDINATED_BUYING', 'medium', 'Coordinated buying detected', `${pct(f.funding_parent_share)} share a common funder.`, fundingUrl);
+    }
 
     if (f.deployer_funded >= 0.1) add('DEPLOYER_FUNDED_BUYERS', 'high', 'Deployer funded the buyers', `${pct(f.deployer_funded)} were funded by deployer.`, fundingUrl);
-    if (f.cluster_dominance >= 0.7) add('CLUSTER_DOMINANCE', 'high', 'Wallet cluster dominates trading', `${pct(f.cluster_dominance)} in related clusters.`, fundingUrl);
+    if (f.cluster_dominance >= 0.7) {
+      add('CLUSTER_DOMINANCE', 'high', 'Wallet cluster dominates trading', `${pct(f.cluster_dominance)} in related clusters.`, fundingUrl);
+    } else if (f.cluster_dominance >= 0.3 && !findings.some(x => x.code === 'COORDINATED_BUYING')) {
+      add('COORDINATED_BUYING', 'medium', 'Coordinated buying detected', `${pct(f.cluster_dominance)} of buyers are in related clusters.`, fundingUrl);
+    }
+
     if (f.same_block_ratio >= 0.3) add('SAME_BLOCK_CONCENTRATION', 'medium', 'Sniping: same-block concentration', `${pct(f.same_block_ratio)} of buys landed in one block.`, fundingUrl);
     if (f.dev_sold) add('DEV_SELLING', 'medium', 'Deployer wallet has sold tokens', 'Deployer sold into the market.', fundingUrl);
+    if (f.fresh_wallet_ratio != null && f.fresh_wallet_ratio >= 0.5) {
+      add('FRESH_WALLETS_RATIO', 'medium', 'High ratio of fresh buyer wallets', `${pct(f.fresh_wallet_ratio)} of wallets are less than 24h old.`, fundingUrl);
+    }
     if (f.size_cv != null && f.size_cv < 0.15 && f.buyersAnalyzed >= 5) add('UNIFORM_BUY_SIZES', 'medium', 'Suspiciously uniform buy amounts', 'Buy sizes have very low variance (bot pattern).', fundingUrl);
   }
 
@@ -535,6 +546,14 @@ function generateFindings(c, e, m, f, s, addr) {
     if (s.scamMentions >= 3) add('SCAM_MENTIONS_ON_X', 'high', 'Scam reports on 𝕏', `${s.scamMentions} posts report scam or rug.`, null);
     if (s.dupRatio > 0.4 && s.posts >= 10) add('COPY_PASTE_SHILLING', 'medium', 'Copy-paste shilling detected', `${pct(s.dupRatio)} duplicate posts.`, null);
     if (s.score < -0.2 && s.posts >= 10) add('NEGATIVE_SENTIMENT', 'medium', 'Negative community sentiment', `Tone score is ${s.score.toFixed(2)}.`, null);
+  }
+
+  // Ensure subclass consistency with findings so score and UI are never contradictory
+  const sub = computeSubclass(f);
+  if (sub === 'Coordinated' && !findings.some(x => x.code === 'COORDINATED_BUYING' || x.code === 'SHARED_FUNDING_PARENT' || x.code === 'CLUSTER_DOMINANCE')) {
+    add('COORDINATED_BUYING', 'medium', 'Coordinated buying detected', 'Early buyer wallets show coordinated clustering or shared funding.', `${tokenBase}?tab=token_transfers`);
+  } else if (sub === 'Extraction' && !findings.some(x => x.code === 'SHARED_FUNDING_PARENT' || x.code === 'CLUSTER_DOMINANCE')) {
+    add('CLUSTER_DOMINANCE', 'high', 'Wallet cluster dominates trading', 'Early buyer wallets exhibit dominant extraction clustering.', `${tokenBase}?tab=token_transfers`);
   }
 
   return findings;
@@ -840,9 +859,32 @@ function renderResult(data) {
 
 function buildSummary({ score, findings }) {
   const high = findings.filter(x => x.severity === 'high').length;
-  const clean = high === 0;
-  const onChain = clean ? 'The contract is clean with no major flags.' : `The contract has ${high} high-risk flag${high !== 1 ? 's' : ''}.`;
-  const offChain = clean ? 'No major red flags in the buyers or community.' : 'Signals indicate caution.';
+  const highContract = findings.filter(x => x.severity === 'high' && !['SHARED_FUNDING_PARENT', 'DEPLOYER_FUNDED_BUYERS', 'CLUSTER_DOMINANCE', 'SCAM_MENTIONS_ON_X'].includes(x.code)).length;
+  const medContract = findings.filter(x => x.severity === 'medium' && ['MUTABLE_TAX', 'UPGRADEABLE_PROXY', 'TRADING_SWITCH', 'UNVERIFIED_SOURCE', 'LOW_LIQUIDITY', 'TOP_HOLDER_CONCENTRATION', 'TOP10_CONCENTRATION'].includes(x.code)).length;
+
+  // Onchain assessment
+  let onChain = '';
+  if (highContract > 0) {
+    onChain = `The contract has ${highContract} high-risk flag${highContract !== 1 ? 's' : ''}.`;
+  } else if (medContract > 0) {
+    onChain = 'Contract has moderate risk signals to review.';
+  } else {
+    onChain = 'The contract is clean with no major flags.';
+  }
+
+  // Offchain assessment (buyers & sentiment)
+  let offChain = '';
+  if (score?.subclass === 'Extraction') {
+    offChain = 'High-risk extraction pattern detected among early buyers.';
+  } else if (score?.subclass === 'Coordinated' || findings.some(x => x.code === 'COORDINATED_BUYING')) {
+    offChain = 'Coordinated buyer pattern detected among early wallets.';
+  } else if (findings.some(x => x.severity === 'high' && ['SHARED_FUNDING_PARENT', 'DEPLOYER_FUNDED_BUYERS', 'CLUSTER_DOMINANCE', 'SCAM_MENTIONS_ON_X'].includes(x.code))) {
+    offChain = 'Critical risk detected in buyer funding or community.';
+  } else if (findings.some(x => x.severity === 'medium' && ['SAME_BLOCK_CONCENTRATION', 'DEV_SELLING', 'FRESH_WALLETS_RATIO', 'UNIFORM_BUY_SIZES', 'NEGATIVE_SENTIMENT', 'COPY_PASTE_SHILLING'].includes(x.code))) {
+    offChain = 'Signals indicate caution in buyer activity or community.';
+  } else {
+    offChain = 'No major red flags in the buyers or community.';
+  }
 
   const sumEl = $('#tokenSummary'); if (sumEl) sumEl.textContent = onChain + ' ' + offChain;
   const dOn = $('#disagreeOnchain'); if (dOn) dOn.textContent = onChain;
@@ -980,10 +1022,14 @@ function buildFunding(f) {
   }
 
   if (fundingSub) {
-    if (f.funding_parent_share >= 0.5) {
+    if (f.cluster_dominance >= 0.7) {
+      fundingSub.textContent = `${pct(f.cluster_dominance)} of trading volume is dominated by a tight wallet cluster.`;
+    } else if (f.funding_parent_share >= 0.5) {
       fundingSub.textContent = `${pct(f.funding_parent_share)} of recent buyers share a single funding wallet.`;
     } else if (f.deployer_funded > 0) {
       fundingSub.textContent = `${pct(f.deployer_funded)} of analyzed buyers were funded directly by the deployer.`;
+    } else if (f.cluster_dominance >= 0.3 || f.funding_parent_share >= 0.2) {
+      fundingSub.textContent = `${pct(f.cluster_dominance || f.funding_parent_share)} of buyers show coordinated funding or cluster activity.`;
     } else {
       fundingSub.textContent = 'All analyzed wallets appear organic with independent funding sources.';
     }
@@ -1009,29 +1055,35 @@ function drawFundingGraph(f) {
     return e;
   };
 
-  const RED = '#c8102e', INK = '#0d0d0a', GREY = '#b5b5aa', LIME = '#ccff00', MUTED = '#5e5e55';
+  const RED = '#c8102e', INK = '#0d0d0a', GREY = '#b5b5aa', LIME = '#ccff00', MUTED = '#5e5e55', WARN = '#f59e0b';
   const total = Math.max(f?.buyersAnalyzed || 10, 6);
   const shared = Math.round((f?.funding_parent_share || 0) * total);
   const devCount = Math.round((f?.deployer_funded || 0) * total);
+  const clusterCount = Math.max(shared, Math.round((f?.cluster_dominance || 0) * total));
+  const activeCluster = shared > 0 ? shared : clusterCount;
 
   const buyers = Array.from({ length: total }, (_, i) => ({ x: 480, y: 35 + i * (260 / Math.max(total - 1, 1)) }));
   const hub = { x: 130, y: 90 }, dev = { x: 130, y: 230 }, ind = { x: 130, y: 165 };
   const curve = (a, b) => `M${a.x},${a.y} C${(a.x + b.x) / 2},${a.y} ${(a.x + b.x) / 2},${b.y} ${b.x},${b.y}`;
 
   // Paths
-  buyers.slice(0, shared).forEach(b => el('path', { d: curve(hub, b), stroke: RED, 'stroke-width': 2, fill: 'none' }));
-  buyers.slice(shared, shared + devCount).forEach(b => el('path', { d: curve(dev, b), stroke: INK, 'stroke-width': 2, fill: 'none', 'stroke-dasharray': '5 4' }));
-  buyers.slice(shared + devCount).forEach(b => el('path', { d: curve(ind, b), stroke: GREY, 'stroke-width': 1.5, fill: 'none' }));
+  buyers.slice(0, activeCluster).forEach(b => el('path', { d: curve(hub, b), stroke: shared > 0 ? RED : WARN, 'stroke-width': 2, fill: 'none' }));
+  buyers.slice(activeCluster, activeCluster + devCount).forEach(b => el('path', { d: curve(dev, b), stroke: INK, 'stroke-width': 2, fill: 'none', 'stroke-dasharray': '5 4' }));
+  buyers.slice(activeCluster + devCount).forEach(b => el('path', { d: curve(ind, b), stroke: GREY, 'stroke-width': 1.5, fill: 'none' }));
 
   // Buyer nodes
-  buyers.forEach((b, i) => el('circle', { cx: b.x, cy: b.y, r: 8, fill: i < shared ? RED : i < shared + devCount ? INK : '#fff', stroke: INK, 'stroke-width': 1.5 }));
+  buyers.forEach((b, i) => el('circle', { cx: b.x, cy: b.y, r: 8, fill: i < activeCluster ? (shared > 0 ? RED : WARN) : i < activeCluster + devCount ? INK : '#fff', stroke: INK, 'stroke-width': 1.5 }));
   el('text', { x: 480, y: 20, 'text-anchor': 'middle', 'font-size': 12, 'font-weight': 700, fill: MUTED }, 'Buyers / Wallets');
 
-  // Hub 1: Shared funder
+  // Hub 1: Shared funder or Wallet Cluster
   if (shared > 0) {
     el('circle', { cx: hub.x, cy: hub.y, r: 24, fill: RED, stroke: INK, 'stroke-width': 1.5 });
     el('text', { x: hub.x, y: hub.y + 6, 'text-anchor': 'middle', 'font-size': 17, 'font-weight': 800, fill: '#fff' }, String(shared));
     el('text', { x: 30, y: hub.y - 30, 'font-size': 13, 'font-weight': 700, fill: INK }, 'Shared funder');
+  } else if (clusterCount > 0) {
+    el('circle', { cx: hub.x, cy: hub.y, r: 24, fill: WARN, stroke: INK, 'stroke-width': 1.5 });
+    el('text', { x: hub.x, y: hub.y + 6, 'text-anchor': 'middle', 'font-size': 17, 'font-weight': 800, fill: INK }, String(clusterCount));
+    el('text', { x: 30, y: hub.y - 30, 'font-size': 13, 'font-weight': 700, fill: INK }, 'Wallet cluster');
   }
 
   // Hub 2: Deployer
@@ -1042,7 +1094,7 @@ function drawFundingGraph(f) {
   }
 
   // Hub 3: Independent (Clean / Organic)
-  if (shared === 0 && devCount === 0) {
+  if (activeCluster === 0 && devCount === 0) {
     el('circle', { cx: ind.x, cy: ind.y, r: 24, fill: '#f4f4ee', stroke: GREY, 'stroke-width': 2 });
     el('circle', { cx: ind.x, cy: ind.y, r: 8, fill: 'var(--lime)', stroke: INK, 'stroke-width': 1.5 });
     el('text', { x: 30, y: ind.y - 32, 'font-size': 13.5, 'font-weight': 800, fill: INK }, 'Independent Wallets');
@@ -1249,10 +1301,14 @@ function renderSpecimen(data) {
       items.push({ sev: 'l', text: 'Total supply is fixed (no active mint)' });
     }
 
-    if (f?.funding_parent_share >= 0.5) {
+    if (f?.cluster_dominance >= 0.7) {
+      items.push({ sev: 'h', text: `${pct(f.cluster_dominance)} in dominating wallet cluster` });
+    } else if (f?.funding_parent_share >= 0.5) {
       items.push({ sev: 'h', text: `${pct(f.funding_parent_share)} of early buyers share one funder` });
     } else if (f?.deployer_funded >= 0.1) {
       items.push({ sev: 'h', text: `${pct(f.deployer_funded)} of buyers were funded by deployer` });
+    } else if (score?.subclass === 'Coordinated' || f?.cluster_dominance >= 0.3 || f?.funding_parent_share >= 0.2) {
+      items.push({ sev: 'm', text: `${pct(f.cluster_dominance || f.funding_parent_share)} coordinated buyer cluster` });
     } else {
       items.push({ sev: 'l', text: 'Organic buyer funding patterns' });
     }
