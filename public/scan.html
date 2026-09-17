@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Scan a token | Zapify</title>
 <meta name="description" content="Scan a Robinhood Chain token on-chain and on X. One address, one verdict, every flag explained.">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon.png">
+<link rel="icon" type="image/x-icon" href="favicon.ico">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<meta property="og:image" content="logo.png">
 <script>
   // Forward to unified 1-page application
   const q = window.location.search || (window.location.hash ? '?' + window.location.hash.slice(1) : '');
@@ -65,7 +69,8 @@ button.chip:hover{ border-color: var(--ink); }
 .nav{ position:sticky; top:0; z-index:40; background: rgba(255,255,255,.92); backdrop-filter: blur(10px); border-bottom:1px solid var(--line); }
 .nav-in{ display:flex; align-items:center; justify-content:space-between; height:64px; gap:20px; }
 .logo{ display:flex; align-items:center; gap:10px; font-weight:800; font-size:19px; font-stretch:115%; letter-spacing:-0.02em; }
-.logo svg{ width:30px; height:30px; }
+.logo svg, .logo-icon{ width:32px; height:32px; object-fit:contain; flex-shrink:0; transition:transform .2s var(--ease), filter .2s; }
+.logo:hover .logo-icon, .logo:hover svg{ transform:scale(1.08) rotate(-3deg); }
 .nav-links{ display:flex; gap:28px; font-size:15px; font-weight:500; color: var(--muted); }
 .nav-links a{ padding:4px 0; }
 .nav-links a:hover, .nav-links a[aria-current]{ color: var(--ink); }
@@ -355,9 +360,8 @@ footer .wrap{ display:flex; justify-content:space-between; gap:12px; flex-wrap:w
 <body data-state="empty">
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
-  <symbol id="logo" viewBox="0 0 24 24">
-    <path d="M6 3h12l5 9-5 9H6l-5-9z" fill="#ccff00" stroke="#0d0d0a" stroke-width="1.4" stroke-linejoin="round"/>
-    <path d="M14 6l-5.5 6.5h4.5L11 18l5.5-6.5h-4.5z" fill="#0d0d0a"/>
+  <symbol id="logo" viewBox="0 0 1024 1024">
+    <image href="logo.png" width="1024" height="1024"/>
   </symbol>
   <symbol id="lens" viewBox="0 0 24 24">
     <circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/>
@@ -367,7 +371,7 @@ footer .wrap{ display:flex; justify-content:space-between; gap:12px; flex-wrap:w
 
 <nav class="nav" aria-label="Main">
   <div class="wrap nav-in">
-    <a href="index.html" class="logo"><svg aria-hidden="true"><use href="#logo"/></svg>Zapify</a>
+    <a href="index.html" class="logo"><img src="logo.png" alt="Zapify logo" class="logo-icon" width="32" height="32">Zapify</a>
     <div class="nav-links">
       <a href="scan.html" aria-current="page">Scanner</a>
       <a href="index.html#checks">What we check</a>
@@ -650,6 +654,6 @@ footer .wrap{ display:flex; justify-content:space-between; gap:12px; flex-wrap:w
   <div class="wrap"><span>© 2026 Zapify</span><span>Not financial advice. Always verify on-chain.</span></div>
 </footer>
 
-<script src="/app.js?v=1.6.0" defer></script>
+<script src="/app.js?v=1.7.0" defer></script>
 </body>
 </html>
