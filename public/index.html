@@ -849,6 +849,7 @@ body[data-state="result"] .rise.d2{ animation-delay:.12s; }
 
 #rescan{ background: var(--lime); color: var(--ink); font-weight:700; }
 #rescan:hover{ transform: translate(-2px,-2px); box-shadow: 2px 2px 0 var(--white); background: #d4ff1a; }
+#heroScanBtn{ padding: 16px 42px; min-width: 210px; font-size: 16px; font-weight: 750; }
 
 /* ===== SCAN BEFORE YOU BUY SECTION ===== */
 .scan-box{ display:grid; grid-template-columns: .85fr 1.15fr; gap:48px; align-items:start; }
@@ -972,7 +973,7 @@ body[data-state="result"] #mainEmptyHint{ display:none; }
     </div>
     <div class="nav-right">
       <span class="net"><span class="pulse" aria-hidden="true"></span>Robinhood Chain, 4663</span>
-      <a href="#scan" class="btn btn-lime btn-sm">Scan a token</a>
+      <a href="#scan" class="btn btn-lime btn-sm">Analyze contract</a>
       <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileNav">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h18M3 12h18M3 17h18"/></svg>
       </button>
@@ -983,7 +984,7 @@ body[data-state="result"] #mainEmptyHint{ display:none; }
     <a href="#checks">What we check</a>
     <a href="#how">How scoring works</a>
     <a href="#faq">FAQ</a>
-    <a href="#scan" style="color:var(--lime);background:var(--ink);font-weight:700">Scan a token</a>
+    <a href="#scan" style="color:var(--lime);background:var(--ink);font-weight:700">Analyze contract</a>
   </div>
 </nav>
 
@@ -998,7 +999,7 @@ body[data-state="result"] #mainEmptyHint{ display:none; }
       <p class="lede">Zapify checks a Robinhood Chain token in two places at once: the contract on-chain, and the conversation on 𝕏. One paste gives you one score, with every red flag spelled out.</p>
 
       <div style="margin:28px 0 24px;">
-        <a href="#scan" class="btn btn-lime" id="heroScanBtn">Scan token</a>
+        <a href="#scan" class="btn btn-lime" id="heroScanBtn">Analyze contract</a>
       </div>
 
       <ul class="assure">
