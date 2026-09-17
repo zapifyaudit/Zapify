@@ -1413,75 +1413,35 @@ function renderSpecimen(data) {
 
   const specFoot = $('#specFoot');
   if (specFoot) {
-    specFoot.innerHTML = `Report generated from live RPC, Blockscout, DexScreener &amp; 𝕏 data. <a href="#scanner" class="hero-to-scanner" style="text-decoration:underline;font-weight:700">Open full report in Scanner ↗</a>`;
+    specFoot.innerHTML = `Report generated from live RPC, Blockscout, DexScreener &amp; 𝕏 data. <a href="#scan" class="hero-to-scanner" style="text-decoration:underline;font-weight:700">Open full report in Scanner ↗</a>`;
     specFoot.querySelector('.hero-to-scanner')?.addEventListener('click', (e) => {
       e.preventDefault();
-      const sc = $('#scanner');
+      const sc = $('#scan');
       if (sc) {
-        const top = sc.getBoundingClientRect().top + window.pageYOffset - 80;
-        window.scrollTo({ top, behavior: reduce ? 'auto' : 'smooth' });
+        sc.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
       }
-      if (input && form) {
-        input.value = address;
-        setTimeout(() => {
-          form.requestSubmit();
-        }, 450);
+      const mainInput = $('#mainInput');
+      if (mainInput) {
+        mainInput.value = address;
+        handleMainScan();
       }
     });
   }
 }
 
-// Hero Search form wiring (Completely independent: updates Specimen Card ONLY)
-const heroInput = $('#heroInput');
+// Hero "Scan token" button wiring -> scrolls to "Scan before you buy" & focuses input
 const heroBtn = $('#heroScanBtn');
-const heroForm = $('#heroScanForm');
-let heroScanning = false;
-
-async function handleHeroScan() {
-  if (heroScanning || !heroInput) return;
-  const val = heroInput.value.trim();
-  if (!val) { heroInput.focus(); return; }
-  if (!/^0x[a-fA-F0-9]{40}$/.test(val)) {
-    alert("Please enter a valid Robinhood Chain contract address (0x followed by 40 hex characters).");
-    heroInput.focus();
-    return;
-  }
-  heroScanning = true;
-  if (heroBtn) { heroBtn.disabled = true; heroBtn.textContent = 'Scanning…'; }
-  try {
-    const report = await runScan(val.toLowerCase());
-    renderSpecimen(report);
-  } catch (e) {
-    console.error('Hero scan failed:', e);
-  } finally {
-    if (heroBtn) { heroBtn.disabled = false; heroBtn.textContent = 'Scan token'; }
-    heroScanning = false;
-  }
-}
-
-$$('[data-hero-fill]').forEach(b => b.addEventListener('click', () => {
-  if (heroInput) {
-    heroInput.value = b.dataset.heroFill;
-    handleHeroScan();
-  }
-}));
-
-if (heroBtn && heroInput) {
+if (heroBtn) {
   heroBtn.addEventListener('click', (e) => {
     e.preventDefault();
-    handleHeroScan();
-  });
-  heroInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      handleHeroScan();
+    const scanSec = $('#scan');
+    if (scanSec) {
+      scanSec.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
     }
-  });
-}
-if (heroForm) {
-  heroForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    handleHeroScan();
+    const mainInput = $('#mainInput');
+    if (mainInput) {
+      setTimeout(() => mainInput.focus(), reduce ? 50 : 350);
+    }
   });
 }
 

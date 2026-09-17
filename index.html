@@ -601,12 +601,9 @@ body[data-state="result"] .rise.d2{ animation-delay:.12s; }
       <h1 class="display"><span>Read the contract.</span><span>Read the room.</span></h1>
       <p class="lede">Zapify checks a Robinhood Chain token in two places at once: the contract on-chain, and the conversation on 𝕏. One paste gives you one score, with every red flag spelled out.</p>
 
-      <form class="scan-row" id="heroScanForm">
-        <input type="text" class="input" id="heroInput" placeholder="" aria-label="Robinhood Chain token contract address" autocomplete="off" spellcheck="false">
-        <button class="btn btn-lime" id="heroScanBtn" type="submit">Scan token</button>
-      </form>
-      <div class="field-hint" id="heroHint" style="margin-top:12px;margin-bottom:18px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--muted)">
-       </div>
+      <div style="margin:28px 0 24px;">
+        <a href="#scan" class="btn btn-lime" id="heroScanBtn">Scan token</a>
+      </div>
 
       <ul class="assure">
         <li><svg aria-hidden="true"><use href="#tick"/></svg>Read-only, never asks for your wallet</li>
