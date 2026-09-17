@@ -90,7 +90,11 @@ function setState(state) {
   const mainBtn = $('#mainScanBtn');
   if (mainBtn) {
     mainBtn.disabled = state === 'scanning';
-    mainBtn.textContent = state === 'scanning' ? 'Analyzing CA…' : 'Analyze CA';
+    if (state === 'scanning') {
+      mainBtn.innerHTML = '<span class="scan-radar-dot"></span> Analyzing CA…';
+    } else {
+      mainBtn.innerHTML = 'Analyze CA';
+    }
   }
   if (state === 'error') {
     const el = $('#scannerWrap') || $('#scanner');
@@ -965,6 +969,11 @@ function renderResult(data) {
   }
   const scoreEl = $('#scoreValue');
   if (scoreEl) {
+    const scoreBig = scoreEl.closest('.score-big');
+    if (scoreBig) {
+      scoreBig.classList.remove('on-high', 'on-med', 'on-low');
+      scoreBig.classList.add(sv >= 60 ? 'on-high' : sv >= 30 ? 'on-med' : 'on-low');
+    }
     animateNumber(scoreEl, 0, sv, 1000, () => {
       scoreEl.classList.remove('punch');
       void scoreEl.offsetWidth;
@@ -979,7 +988,7 @@ function renderResult(data) {
     needle.style.transition = 'none';
     needle.style.left = '0%';
     requestAnimationFrame(() => requestAnimationFrame(() => {
-      needle.style.transition = 'left 1.4s cubic-bezier(0.34, 1.35, 0.64, 1)';
+      needle.style.transition = 'left 1.4s cubic-bezier(0.34, 1.45, 0.64, 1)';
       needle.style.left = sv + '%';
     }));
   }
@@ -1275,20 +1284,53 @@ function drawFundingGraph(f) {
   const curve = (a, b) => `M${a.x},${a.y} C${(a.x + b.x) / 2},${a.y} ${(a.x + b.x) / 2},${b.y} ${b.x},${b.y}`;
 
   // Paths
-  buyers.slice(0, activeCluster).forEach((b, i) => el('path', { d: curve(hub, b), stroke: shared > 0 ? RED : WARN, 'stroke-width': 2, fill: 'none', class: 'motion-path', style: `animation-delay:${i * 45}ms;` }));
-  buyers.slice(activeCluster, activeCluster + devCount).forEach((b, i) => el('path', { d: curve(dev, b), stroke: INK, 'stroke-width': 2, fill: 'none', 'stroke-dasharray': '5 4', class: 'motion-path', style: `animation-delay:${(activeCluster + i) * 45}ms;` }));
-  buyers.slice(activeCluster + devCount).forEach((b, i) => el('path', { d: curve(ind, b), stroke: GREY, 'stroke-width': 1.5, fill: 'none', class: 'motion-path', style: `animation-delay:${(activeCluster + devCount + i) * 45}ms;` }));
+  const paths = [];
+  buyers.slice(0, activeCluster).forEach((b, i) => {
+    paths.push(el('path', { d: curve(hub, b), stroke: shared > 0 ? RED : WARN, 'stroke-width': 2, fill: 'none', class: 'motion-path', 'data-buyer-idx': i, style: `animation-delay:${i * 45}ms;` }));
+  });
+  buyers.slice(activeCluster, activeCluster + devCount).forEach((b, i) => {
+    const idx = activeCluster + i;
+    paths.push(el('path', { d: curve(dev, b), stroke: INK, 'stroke-width': 2, fill: 'none', 'stroke-dasharray': '5 4', class: 'motion-path', 'data-buyer-idx': idx, style: `animation-delay:${idx * 45}ms;` }));
+  });
+  buyers.slice(activeCluster + devCount).forEach((b, i) => {
+    const idx = activeCluster + devCount + i;
+    paths.push(el('path', { d: curve(ind, b), stroke: GREY, 'stroke-width': 1.5, fill: 'none', class: 'motion-path', 'data-buyer-idx': idx, style: `animation-delay:${idx * 45}ms;` }));
+  });
 
   // Buyer nodes
-  buyers.forEach((b, i) => el('circle', { cx: b.x, cy: b.y, r: 8, fill: i < activeCluster ? (shared > 0 ? RED : WARN) : i < activeCluster + devCount ? INK : '#fff', stroke: INK, 'stroke-width': 1.5, class: 'motion-node', style: `animation-delay:${0.25 + i * 0.04}s;` }));
+  buyers.forEach((b, i) => {
+    const circle = el('circle', {
+      cx: b.x, cy: b.y, r: 8,
+      fill: i < activeCluster ? (shared > 0 ? RED : WARN) : i < activeCluster + devCount ? INK : '#fff',
+      stroke: INK, 'stroke-width': 1.5,
+      class: 'motion-node',
+      style: `animation-delay:${0.25 + i * 0.04}s; cursor:pointer;`
+    });
+
+    circle.addEventListener('mouseenter', () => {
+      paths.forEach((p, pIdx) => {
+        if (pIdx === i) {
+          p.classList.add('highlighted');
+        } else {
+          p.classList.add('dimmed');
+        }
+      });
+    });
+    circle.addEventListener('mouseleave', () => {
+      paths.forEach(p => p.classList.remove('highlighted', 'dimmed'));
+    });
+  });
+
   el('text', { x: 480, y: 20, 'text-anchor': 'middle', 'font-size': 12, 'font-weight': 700, fill: MUTED }, 'Buyers / Wallets');
 
   // Hub 1: Shared funder or Wallet Cluster
   if (shared > 0) {
+    el('circle', { cx: hub.x, cy: hub.y, r: 34, fill: 'none', stroke: RED, 'stroke-width': 1.5, class: 'hub-sonar-ring' });
     el('circle', { cx: hub.x, cy: hub.y, r: 24, fill: RED, stroke: INK, 'stroke-width': 1.5, class: 'motion-hub' });
     el('text', { x: hub.x, y: hub.y + 6, 'text-anchor': 'middle', 'font-size': 17, 'font-weight': 800, fill: '#fff' }, String(shared));
     el('text', { x: 30, y: hub.y - 30, 'font-size': 13, 'font-weight': 700, fill: INK }, 'Shared funder');
   } else if (clusterCount > 0) {
+    el('circle', { cx: hub.x, cy: hub.y, r: 34, fill: 'none', stroke: WARN, 'stroke-width': 1.5, class: 'hub-sonar-ring' });
     el('circle', { cx: hub.x, cy: hub.y, r: 24, fill: WARN, stroke: INK, 'stroke-width': 1.5, class: 'motion-hub' });
     el('text', { x: hub.x, y: hub.y + 6, 'text-anchor': 'middle', 'font-size': 17, 'font-weight': 800, fill: INK }, String(clusterCount));
     el('text', { x: 30, y: hub.y - 30, 'font-size': 13, 'font-weight': 700, fill: INK }, 'Wallet cluster');
@@ -1303,6 +1345,7 @@ function drawFundingGraph(f) {
 
   // Hub 3: Independent (Clean / Organic)
   if (activeCluster === 0 && devCount === 0) {
+    el('circle', { cx: ind.x, cy: ind.y, r: 34, fill: 'none', stroke: 'var(--lime)', 'stroke-width': 1.5, class: 'hub-sonar-ring' });
     el('circle', { cx: ind.x, cy: ind.y, r: 24, fill: '#f4f4ee', stroke: GREY, 'stroke-width': 2, class: 'motion-hub' });
     el('circle', { cx: ind.x, cy: ind.y, r: 8, fill: 'var(--lime)', stroke: INK, 'stroke-width': 1.5, class: 'motion-hub', style: 'animation-delay: 0.1s;' });
     el('text', { x: 30, y: ind.y - 32, 'font-size': 13.5, 'font-weight': 800, fill: INK }, 'Independent Wallets');
@@ -1342,7 +1385,8 @@ function buildSentiment(s, symbol, addr) {
     const bars = Array.from({ length: 24 }, (_, i) => {
       const h = Math.max(8, Math.min(85, Math.floor(15 + Math.sin(i / 3) * 10 + Math.random() * (i > 14 ? 50 : 25))));
       const isSpike = i === 18 && (s.dupRatio > 0.3);
-      return `<i class="${isSpike ? 'spike' : ''}" style="height:${h}px;animation-delay:${i * 22}ms;"></i>`;
+      const estPosts = Math.round(h * 1.4);
+      return `<i class="${isSpike ? 'spike' : ''}" style="--i:${i};height:${h}px;animation-delay:${i * 22}ms;" title="${estPosts} posts in hour ${i + 1}"></i>`;
     });
     hoursEl.innerHTML = bars.join('');
 
@@ -1858,3 +1902,57 @@ if ($('#heroSpecimen')) {
     setTimeout(() => doScan(ca.toLowerCase()), 150);
   }
 })();
+
+// 3D Perspective Parallax Mouse Tracking for Specimen Card
+function initSpecimenTilt() {
+  const spec = $('#heroSpecimen');
+  if (!spec || reduce) return;
+  let bounding = null;
+  const updateBounding = () => { bounding = spec.getBoundingClientRect(); };
+  window.addEventListener('resize', updateBounding, { passive: true });
+  window.addEventListener('scroll', updateBounding, { passive: true });
+
+  let targetX = 0, targetY = 0;
+  let currentX = 0, currentY = 0;
+  let isHovered = false;
+
+  spec.addEventListener('mousemove', (e) => {
+    if (!bounding) updateBounding();
+    const x = e.clientX - bounding.left;
+    const y = e.clientY - bounding.top;
+    const centerX = bounding.width / 2;
+    const centerY = bounding.height / 2;
+    targetX = -((y - centerY) / centerY) * 7;
+    targetY = ((x - centerX) / centerX) * 7;
+  });
+
+  spec.addEventListener('mouseenter', () => {
+    isHovered = true;
+    updateBounding();
+  });
+
+  spec.addEventListener('mouseleave', () => {
+    isHovered = false;
+    targetX = 0;
+    targetY = 0;
+  });
+
+  function renderTilt() {
+    if (isHovered) {
+      currentX += (targetX - currentX) * 0.12;
+      currentY += (targetY - currentY) * 0.12;
+      spec.style.transform = `perspective(850px) rotateX(${currentX.toFixed(2)}deg) rotateY(${currentY.toFixed(2)}deg) translateY(-6px)`;
+    } else {
+      currentX += (0 - currentX) * 0.1;
+      currentY += (0 - currentY) * 0.1;
+      if (Math.abs(currentX) > 0.05 || Math.abs(currentY) > 0.05) {
+        spec.style.transform = `perspective(850px) rotateX(${currentX.toFixed(2)}deg) rotateY(${currentY.toFixed(2)}deg)`;
+      } else {
+        spec.style.transform = '';
+      }
+    }
+    requestAnimationFrame(renderTilt);
+  }
+  requestAnimationFrame(renderTilt);
+}
+initSpecimenTilt();
