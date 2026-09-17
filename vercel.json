@@ -1,4 +1,9 @@
 {
+  "functions": {
+    "api/*.js": {
+      "maxDuration": 15
+    }
+  },
   "rewrites": [
     { "source": "/scan", "destination": "/index.html" }
   ],

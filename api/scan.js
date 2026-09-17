@@ -502,7 +502,7 @@ async function fetchSentiment(symbol, addr) {
       url.searchParams.set('user.fields', 'username,public_metrics');
 
       const ctrl = new AbortController();
-      const t = setTimeout(() => ctrl.abort(), 4000);
+      const t = setTimeout(() => ctrl.abort(), 1800);
       const xRes = await fetch(url.toString(), {
         headers: { Authorization: `Bearer ${token}` },
         signal: ctrl.signal
