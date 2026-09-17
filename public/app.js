@@ -1369,7 +1369,7 @@ function buildFindings(findings) {
     const sev = f.severity;
     const label = sev === 'pass' ? 'Passed' : sev.charAt(0).toUpperCase() + sev.slice(1);
     const srcUrl = safe(f.source_url);
-    const srcLabel = srcUrl?.includes('blockscout') ? 'Blockscout ↗' : srcUrl?.includes('dexscreener') ? 'DexScreener ↗' : 'Source ↗';
+    const srcLabel = srcUrl?.includes('blockscout') ? 'Blockscout' : srcUrl?.includes('dexscreener') ? 'DexScreener' : 'Source';
     return `
       <div class="finding${sev === 'pass' ? ' pass' : ''}" data-sev="${esc(sev)}">
         <span class="sev-tag ${esc(sev)}">${esc(label)}</span>
@@ -1422,10 +1422,10 @@ function buildEvidence(addr, symbol, m) {
   const c = $('#evidenceLinks');
   if (!c) return;
   const links = [
-    { href: `https://robinhoodchain.blockscout.com/address/${addr}`, label: 'Contract ↗', sub: 'Blockscout' },
-    { href: `https://robinhoodchain.blockscout.com/token/${addr}?tab=holders`, label: 'Holders ↗', sub: 'Blockscout' },
-    m?.dexUrl ? { href: m.dexUrl, label: 'Market ↗', sub: 'DexScreener' } : null,
-    symbol ? { href: `https://x.com/search?q=%24${symbol.toUpperCase()}&src=typed_query&f=live`, label: `𝕏: $${symbol} ↗`, sub: 'Live cashtag search' } : null
+    { href: `https://robinhoodchain.blockscout.com/address/${addr}`, label: 'Contract', sub: 'Blockscout' },
+    { href: `https://robinhoodchain.blockscout.com/token/${addr}?tab=holders`, label: 'Holders', sub: 'Blockscout' },
+    m?.dexUrl ? { href: m.dexUrl, label: 'Market', sub: 'DexScreener' } : null,
+    symbol ? { href: `https://x.com/search?q=%24${symbol.toUpperCase()}&src=typed_query&f=live`, label: `𝕏: $${symbol}`, sub: 'Live cashtag search' } : null
   ].filter(Boolean);
 
   c.innerHTML = links.map(l => `<a href="${safe(l.href)}" target="_blank" rel="noopener"><b>${esc(l.label)}</b><span>${esc(l.sub)}</span></a>`).join('');
@@ -1578,7 +1578,7 @@ function renderSpecimen(data) {
 
   const specFoot = $('#specFoot');
   if (specFoot) {
-    specFoot.innerHTML = `Report generated from live RPC, Blockscout, DexScreener &amp; 𝕏 data. <a href="#scan" class="hero-to-scanner" style="text-decoration:underline;font-weight:700">Open full report in Scanner ↗</a>`;
+    specFoot.innerHTML = `Report generated from live RPC, Blockscout, DexScreener &amp; 𝕏 data. <a href="#scan" class="hero-to-scanner" style="text-decoration:underline;font-weight:700">Open full report in Scanner</a>`;
     specFoot.querySelector('.hero-to-scanner')?.addEventListener('click', (e) => {
       e.preventDefault();
       const sc = $('#scan');
@@ -1724,7 +1724,7 @@ function renderMainReport(el, r) {
     <div class="mr-footer">
       <div class="mr-links">
         <span style="font-size:12.5px;font-weight:700;color:var(--muted);">Verify evidence:</span>
-        ${links.map(l => `<a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer" class="chip"><span>${esc(l.label)}</span> ↗</a>`).join('')}
+        ${links.map(l => `<a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer" class="chip"><span>${esc(l.label)}</span></a>`).join('')}
       </div>
       <div class="mr-footer-bar">
         <span class="mr-cov"><span class="dot" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--lime);margin-right:6px;"></span>Data coverage: ${coverage.ok}/${coverage.total} sources on Robinhood Chain</span>
