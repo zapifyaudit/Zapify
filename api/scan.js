@@ -26,9 +26,10 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  // --- Validate input ---
-  const body = req.body || {};
-  const rawAddress = (body.address || '').trim();
+  try {
+    // --- Validate input ---
+    const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
+    const rawAddress = (body.address || '').trim();
   const validation = validateAddress(rawAddress);
 
   if (!validation.valid) {
@@ -141,7 +142,11 @@ export default async function handler(req, res) {
   // Save to DB (fire-and-forget — never blocks the response)
   saveToDb(report).catch(() => {});
 
-  return res.status(200).json(report);
+    return res.status(200).json(report);
+  } catch (err) {
+    console.error('Scan API handler error:', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
