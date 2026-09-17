@@ -34,6 +34,28 @@ const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+function animateNumber(el, start, end, duration = 900) {
+  if (!el) return;
+  if (reduce || start === end) {
+    el.textContent = end;
+    return;
+  }
+  const startTime = performance.now();
+  const range = end - start;
+  function tick(now) {
+    const elapsed = now - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 4);
+    el.textContent = Math.round(start + range * eased);
+    if (progress < 1) {
+      requestAnimationFrame(tick);
+    } else {
+      el.textContent = end;
+    }
+  }
+  requestAnimationFrame(tick);
+}
+
 async function fetchJson(url, opts = {}, timeoutMs = 8000) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), timeoutMs);
@@ -939,7 +961,8 @@ function renderResult(data) {
     svEl.textContent = score.verdict;
     svEl.className = 'verdict ' + (sv >= 60 ? 'high' : sv >= 30 ? 'medium' : 'low');
   }
-  const scoreEl = $('#scoreValue'); if (scoreEl) scoreEl.textContent = sv;
+  const scoreEl = $('#scoreValue');
+  if (scoreEl) animateNumber(scoreEl, 0, sv, 1000);
   const zoneHigh = $('#zoneHigh'); if (zoneHigh) zoneHigh.className = sv >= 60 ? 'on-high' : '';
 
   const needle = $('#needle');
@@ -947,7 +970,7 @@ function renderResult(data) {
     needle.style.transition = 'none';
     needle.style.left = '0%';
     requestAnimationFrame(() => requestAnimationFrame(() => {
-      needle.style.transition = '';
+      needle.style.transition = 'left 1.2s cubic-bezier(0.16, 1, 0.3, 1)';
       needle.style.left = sv + '%';
     }));
   }
@@ -1243,36 +1266,36 @@ function drawFundingGraph(f) {
   const curve = (a, b) => `M${a.x},${a.y} C${(a.x + b.x) / 2},${a.y} ${(a.x + b.x) / 2},${b.y} ${b.x},${b.y}`;
 
   // Paths
-  buyers.slice(0, activeCluster).forEach(b => el('path', { d: curve(hub, b), stroke: shared > 0 ? RED : WARN, 'stroke-width': 2, fill: 'none' }));
-  buyers.slice(activeCluster, activeCluster + devCount).forEach(b => el('path', { d: curve(dev, b), stroke: INK, 'stroke-width': 2, fill: 'none', 'stroke-dasharray': '5 4' }));
-  buyers.slice(activeCluster + devCount).forEach(b => el('path', { d: curve(ind, b), stroke: GREY, 'stroke-width': 1.5, fill: 'none' }));
+  buyers.slice(0, activeCluster).forEach((b, i) => el('path', { d: curve(hub, b), stroke: shared > 0 ? RED : WARN, 'stroke-width': 2, fill: 'none', class: 'motion-path', style: `animation-delay:${i * 45}ms;` }));
+  buyers.slice(activeCluster, activeCluster + devCount).forEach((b, i) => el('path', { d: curve(dev, b), stroke: INK, 'stroke-width': 2, fill: 'none', 'stroke-dasharray': '5 4', class: 'motion-path', style: `animation-delay:${(activeCluster + i) * 45}ms;` }));
+  buyers.slice(activeCluster + devCount).forEach((b, i) => el('path', { d: curve(ind, b), stroke: GREY, 'stroke-width': 1.5, fill: 'none', class: 'motion-path', style: `animation-delay:${(activeCluster + devCount + i) * 45}ms;` }));
 
   // Buyer nodes
-  buyers.forEach((b, i) => el('circle', { cx: b.x, cy: b.y, r: 8, fill: i < activeCluster ? (shared > 0 ? RED : WARN) : i < activeCluster + devCount ? INK : '#fff', stroke: INK, 'stroke-width': 1.5 }));
+  buyers.forEach((b, i) => el('circle', { cx: b.x, cy: b.y, r: 8, fill: i < activeCluster ? (shared > 0 ? RED : WARN) : i < activeCluster + devCount ? INK : '#fff', stroke: INK, 'stroke-width': 1.5, class: 'motion-node', style: `animation-delay:${0.25 + i * 0.04}s;` }));
   el('text', { x: 480, y: 20, 'text-anchor': 'middle', 'font-size': 12, 'font-weight': 700, fill: MUTED }, 'Buyers / Wallets');
 
   // Hub 1: Shared funder or Wallet Cluster
   if (shared > 0) {
-    el('circle', { cx: hub.x, cy: hub.y, r: 24, fill: RED, stroke: INK, 'stroke-width': 1.5 });
+    el('circle', { cx: hub.x, cy: hub.y, r: 24, fill: RED, stroke: INK, 'stroke-width': 1.5, class: 'motion-hub' });
     el('text', { x: hub.x, y: hub.y + 6, 'text-anchor': 'middle', 'font-size': 17, 'font-weight': 800, fill: '#fff' }, String(shared));
     el('text', { x: 30, y: hub.y - 30, 'font-size': 13, 'font-weight': 700, fill: INK }, 'Shared funder');
   } else if (clusterCount > 0) {
-    el('circle', { cx: hub.x, cy: hub.y, r: 24, fill: WARN, stroke: INK, 'stroke-width': 1.5 });
+    el('circle', { cx: hub.x, cy: hub.y, r: 24, fill: WARN, stroke: INK, 'stroke-width': 1.5, class: 'motion-hub' });
     el('text', { x: hub.x, y: hub.y + 6, 'text-anchor': 'middle', 'font-size': 17, 'font-weight': 800, fill: INK }, String(clusterCount));
     el('text', { x: 30, y: hub.y - 30, 'font-size': 13, 'font-weight': 700, fill: INK }, 'Wallet cluster');
   }
 
   // Hub 2: Deployer
   if (devCount > 0) {
-    el('rect', { x: dev.x - 24, y: dev.y - 24, width: 48, height: 48, rx: 12, fill: LIME, stroke: INK, 'stroke-width': 1.5 });
+    el('rect', { x: dev.x - 24, y: dev.y - 24, width: 48, height: 48, rx: 12, fill: LIME, stroke: INK, 'stroke-width': 1.5, class: 'motion-hub' });
     el('text', { x: dev.x, y: dev.y + 6, 'text-anchor': 'middle', 'font-size': 17, 'font-weight': 800, fill: INK }, String(devCount));
     el('text', { x: 30, y: dev.y + 46, 'font-size': 13, 'font-weight': 700, fill: INK }, 'Deployer');
   }
 
   // Hub 3: Independent (Clean / Organic)
   if (activeCluster === 0 && devCount === 0) {
-    el('circle', { cx: ind.x, cy: ind.y, r: 24, fill: '#f4f4ee', stroke: GREY, 'stroke-width': 2 });
-    el('circle', { cx: ind.x, cy: ind.y, r: 8, fill: 'var(--lime)', stroke: INK, 'stroke-width': 1.5 });
+    el('circle', { cx: ind.x, cy: ind.y, r: 24, fill: '#f4f4ee', stroke: GREY, 'stroke-width': 2, class: 'motion-hub' });
+    el('circle', { cx: ind.x, cy: ind.y, r: 8, fill: 'var(--lime)', stroke: INK, 'stroke-width': 1.5, class: 'motion-hub', style: 'animation-delay: 0.1s;' });
     el('text', { x: 30, y: ind.y - 32, 'font-size': 13.5, 'font-weight': 800, fill: INK }, 'Independent Wallets');
     el('text', { x: 30, y: ind.y - 14, 'font-size': 12, fill: MUTED }, 'Organic decentralized distribution');
   }
@@ -1289,7 +1312,14 @@ function buildSentiment(s, symbol, addr) {
   if (xToneSub) xToneSub.textContent = `${s.posts} posts mention this token.`;
   if (toneValue) toneValue.textContent = (s.score >= 0 ? '+' : '') + s.score.toFixed(2);
   if (toneLabel) toneLabel.textContent = s.label || '';
-  if (tonePin) tonePin.style.left = (50 + s.score * 50) + '%';
+  if (tonePin) {
+    tonePin.style.transition = 'none';
+    tonePin.style.left = '50%';
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      tonePin.style.transition = 'left 1.2s cubic-bezier(0.16, 1, 0.3, 1)';
+      tonePin.style.left = (50 + s.score * 50) + '%';
+    }));
+  }
   if (xDupPct) xDupPct.textContent = pct(s.dupRatio);
   if (xScamCount) xScamCount.textContent = String(s.scamMentions || 0);
 
@@ -1298,7 +1328,7 @@ function buildSentiment(s, symbol, addr) {
     const bars = Array.from({ length: 24 }, (_, i) => {
       const h = Math.max(8, Math.min(85, Math.floor(15 + Math.sin(i / 3) * 10 + Math.random() * (i > 14 ? 50 : 25))));
       const isSpike = i === 18 && (s.dupRatio > 0.3);
-      return `<i class="${isSpike ? 'spike' : ''}" style="height:${h}px"></i>`;
+      return `<i class="${isSpike ? 'spike' : ''}" style="height:${h}px;animation-delay:${i * 22}ms;"></i>`;
     });
     hoursEl.innerHTML = bars.join('');
   }
@@ -1456,10 +1486,16 @@ function renderSpecimen(data) {
   }
 
   const specScore = $('#specScore');
-  if (specScore && score) specScore.textContent = score.value;
+  if (specScore && score) {
+    const curVal = parseInt(specScore.textContent) || 0;
+    animateNumber(specScore, curVal, score.value, 900);
+  }
 
   const specBar = $('#specBar');
-  if (specBar && score) specBar.style.width = score.value + '%';
+  if (specBar && score) {
+    specBar.style.transition = 'width 1s cubic-bezier(0.16, 1, 0.3, 1)';
+    specBar.style.width = score.value + '%';
+  }
 
   const onchainList = $('#specOnchain');
   if (onchainList) {
@@ -1695,6 +1731,17 @@ function renderMainReport(el, r) {
       </div>
     </div>
   `;
+
+  const mrScoreVal = el.querySelector('.mr-score-num b');
+  if (mrScoreVal) animateNumber(mrScoreVal, 0, sv, 900);
+  const mrFill = el.querySelector('.mr-meter-fill');
+  if (mrFill) {
+    mrFill.style.width = '0%';
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      mrFill.style.transition = 'width 1s cubic-bezier(0.16, 1, 0.3, 1)';
+      mrFill.style.width = Math.max(sv, 4) + '%';
+    }));
+  }
 
   bindCopyButtons();
 }
