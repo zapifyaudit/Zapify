@@ -1956,3 +1956,22 @@ function initSpecimenTilt() {
   requestAnimationFrame(renderTilt);
 }
 initSpecimenTilt();
+
+// Scroll-triggered staggered reveal for Problem, Checks, How, and FAQ sections
+function initScrollReveal() {
+  if (reduce || !('IntersectionObserver' in window)) {
+    $$('.traps, .lens-grid, .how-steps, .bands, .faq').forEach(el => el.classList.add('in-view'));
+    return;
+  }
+  const targets = $$('.traps, .lens-grid, .how-steps, .bands, .faq');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('in-view');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+  targets.forEach(t => observer.observe(t));
+}
+initScrollReveal();
