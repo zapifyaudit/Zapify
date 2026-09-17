@@ -705,9 +705,62 @@ body[data-state="result"] .rise.d2{ animation-delay:.12s; }
         </div>
       </div>
     </div>
+  </div>
+</section>
 
-    <!-- ============ LIVE SCANNER (INTEGRATED IN WHAT WE CHECK) ============ -->
-    <div id="scanner" style="margin-top:24px; scroll-margin-top:84px;">
+<!-- ============ HOW SCORING WORKS ============ -->
+<section class="section how" id="how" aria-labelledby="how-title">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2 class="display" id="how-title">From paste<br>to verdict.</h2>
+      <p class="lede">Every check that fails adds weight. Serious failures, like zero sells or one wallet owning most of the supply, push the score straight into high risk.</p>
+    </div>
+    <ol class="how-steps">
+      <li><h3>Paste the address</h3><p>Any token contract on Robinhood Chain mainnet, chain ID 4663.</p></li>
+      <li><h3>Both lenses run</h3><p>Contract, market, holders, buyer funding and 𝕏 mentions are checked at the same time.</p></li>
+      <li><h3>Read the verdict</h3><p>A score from 0 to 100, a verdict, and every finding that moved it.</p></li>
+    </ol>
+    <div class="bands" role="list">
+      <div role="listitem"><span class="verdict low">Low risk</span><span class="range">0–29</span><p>No serious flags in the checks that ran.</p></div>
+      <div role="listitem"><span class="verdict medium">Caution</span><span class="range">30–59</span><p>Some flags. Read them before you size in.</p></div>
+      <div role="listitem"><span class="verdict high">High risk</span><span class="range">60–100</span><p>Serious flags, or a hard stop such as zero sells or a majority whale.</p></div>
+    </div>
+    <p class="coverage-note"><b>Data coverage comes with every report.</b> It shows how many of the five data sources answered, so a clean result with low coverage reads as incomplete rather than safe.</p>
+  </div>
+</section>
+
+<!-- ============ SCAN BEFORE YOU BUY ============ -->
+<section class="section" id="scan" aria-labelledby="scan-title">
+  <div class="wrap scan-box">
+    <div>
+      <span class="hero-tag" style="margin-bottom:14px;"><span class="dot"></span>Instant Token Audit</span>
+      <h2 class="display" id="scan-title">Scan before<br>you buy.</h2>
+      <p class="lede">Paste any Robinhood Chain contract address. Zapify checks contract powers, holder spread, liquidity depth, coordinated buyer patterns, and 𝕏 sentiment in seconds.</p>
+      <ul class="assure" style="margin-top:24px;">
+        <li><svg aria-hidden="true"><use href="#tick"/></svg>Fast public RPC inspection</li>
+        <li><svg aria-hidden="true"><use href="#tick"/></svg>Blockscout &amp; DexScreener verified</li>
+        <li><svg aria-hidden="true"><use href="#tick"/></svg>100% free &amp; read-only (no wallet needed)</li>
+      </ul>
+    </div>
+    <div class="scan-card">
+      <div class="card-label-row">
+        <label for="mainInput">Robinhood Chain token contract address</label>
+        <span class="chip" style="font-size:12px;padding:3px 9px;"><span class="dot"></span>Chain 4663</span>
+      </div>
+      <div class="scan-row">
+        <div class="field">
+          <svg aria-hidden="true"><use href="#lens"/></svg>
+          <input type="text" class="input" id="mainInput" placeholder="Paste token contract address (0x…)" autocomplete="off" spellcheck="false">
+        </div>
+        <button class="btn btn-lime" id="mainScanBtn" type="button">Run full scan</button>
+      </div>
+      <div class="field-hint" id="mainHint" style="margin-top:8px;"></div>
+    </div>
+  </div>
+
+  <!-- ============ LIVE SCANNER (PLACED DIRECTLY BELOW SCAN BEFORE YOU BUY) ============ -->
+  <div class="wrap" id="scannerWrap" style="margin-top:40px;">
+    <div id="scanner" style="scroll-margin-top:84px;">
       <form id="scanForm" style="display:none;" novalidate>
         <input id="addr" type="hidden">
         <button id="scanBtn" type="submit" style="display:none;"></button>
@@ -925,69 +978,6 @@ body[data-state="result"] .rise.d2{ animation-delay:.12s; }
           <button type="button" class="btn btn-lime btn-sm" id="rescan">Scan again</button>
         </div>
       </section>
-    </div>
-  </div>
-</section>
-
-<!-- ============ HOW SCORING WORKS ============ -->
-<section class="section how" id="how" aria-labelledby="how-title">
-  <div class="wrap">
-    <div class="sec-head">
-      <h2 class="display" id="how-title">From paste<br>to verdict.</h2>
-      <p class="lede">Every check that fails adds weight. Serious failures, like zero sells or one wallet owning most of the supply, push the score straight into high risk.</p>
-    </div>
-    <ol class="how-steps">
-      <li><h3>Paste the address</h3><p>Any token contract on Robinhood Chain mainnet, chain ID 4663.</p></li>
-      <li><h3>Both lenses run</h3><p>Contract, market, holders, buyer funding and 𝕏 mentions are checked at the same time.</p></li>
-      <li><h3>Read the verdict</h3><p>A score from 0 to 100, a verdict, and every finding that moved it.</p></li>
-    </ol>
-    <div class="bands" role="list">
-      <div role="listitem"><span class="verdict low">Low risk</span><span class="range">0–29</span><p>No serious flags in the checks that ran.</p></div>
-      <div role="listitem"><span class="verdict medium">Caution</span><span class="range">30–59</span><p>Some flags. Read them before you size in.</p></div>
-      <div role="listitem"><span class="verdict high">High risk</span><span class="range">60–100</span><p>Serious flags, or a hard stop such as zero sells or a majority whale.</p></div>
-    </div>
-    <p class="coverage-note"><b>Data coverage comes with every report.</b> It shows how many of the five data sources answered, so a clean result with low coverage reads as incomplete rather than safe.</p>
-  </div>
-</section>
-
-<!-- ============ SCAN BEFORE YOU BUY ============ -->
-<section class="section" id="scan" aria-labelledby="scan-title">
-  <div class="wrap scan-box">
-    <div>
-      <span class="hero-tag" style="margin-bottom:14px;"><span class="dot"></span>Instant Token Audit</span>
-      <h2 class="display" id="scan-title">Scan before<br>you buy.</h2>
-      <p class="lede">Paste any Robinhood Chain contract address. Zapify checks contract powers, holder spread, liquidity depth, coordinated buyer patterns, and 𝕏 sentiment in seconds.</p>
-      <ul class="assure" style="margin-top:24px;">
-        <li><svg aria-hidden="true"><use href="#tick"/></svg>Fast public RPC inspection</li>
-        <li><svg aria-hidden="true"><use href="#tick"/></svg>Blockscout &amp; DexScreener verified</li>
-        <li><svg aria-hidden="true"><use href="#tick"/></svg>100% free &amp; read-only (no wallet needed)</li>
-      </ul>
-    </div>
-    <div class="scan-card">
-      <div class="card-label-row">
-        <label for="mainInput">Robinhood Chain token contract address</label>
-        <span class="chip" style="font-size:12px;padding:3px 9px;"><span class="dot"></span>Chain 4663</span>
-      </div>
-      <div class="scan-row">
-        <div class="field">
-          <svg aria-hidden="true"><use href="#lens"/></svg>
-          <input type="text" class="input" id="mainInput" placeholder="" autocomplete="off" spellcheck="false">
-        </div>
-        <button class="btn btn-lime" id="mainScanBtn" type="button">Run full scan</button>
-      </div>
-      <div class="example-row">
-        </div>
-      <div class="scan-status-line" id="mainStatus" role="status" aria-live="polite">
-        <div class="spin-ring"></div>
-        <div class="status-info">
-          <strong class="status-text">Scanning on Robinhood Chain…</strong>
-          <small>Reading bytecode, explorer, DexScreener &amp; 𝕏 sentiment</small>
-        </div>
-      </div>
-      <div class="mini-result" id="mainResult" aria-live="polite"></div>
-      
-        </div>
-      </div>
     </div>
   </div>
 </section>

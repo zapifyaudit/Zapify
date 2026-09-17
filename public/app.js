@@ -63,8 +63,13 @@ function setState(state) {
   document.body.dataset.state = state;
   const btn = $('#scanBtn');
   if (btn) btn.disabled = state === 'scanning';
+  const mainBtn = $('#mainScanBtn');
+  if (mainBtn) {
+    mainBtn.disabled = state === 'scanning';
+    mainBtn.textContent = state === 'scanning' ? 'Scanning…' : 'Run full scan';
+  }
   if (state === 'error') {
-    const el = $('#scanner') || $('#scanForm');
+    const el = $('#scannerWrap') || $('#scanner');
     if (el) el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
   }
 }
@@ -738,23 +743,32 @@ form?.addEventListener('submit', async (e) => {
   await doScan(v.toLowerCase());
 });
 
-// Scanner Console example chips (Only populates the Scanner Console #addr)
+// Scanner Console example chips (Populates #mainInput or Scanner Console #addr)
 $$('[data-scanner-fill], #scanner [data-fill], .error-card [data-fill]').forEach(b => b.addEventListener('click', () => {
   const ca = b.dataset.scannerFill || b.dataset.fill;
-  if (ca && input) {
-    input.value = ca;
-    form?.requestSubmit();
+  if (ca) {
+    if (mainInput) {
+      mainInput.value = ca;
+      handleMainScan();
+    } else if (input) {
+      input.value = ca;
+      form?.requestSubmit();
+    }
   }
 }));
 
 $('#errRetry')?.addEventListener('click', () => {
   setState('empty');
-  if (input) { input.focus(); input.select(); }
+  const target = $('#scan') || $('#scanner');
+  if (target) target.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+  if (mainInput) { mainInput.focus(); mainInput.select(); }
+  else if (input) { input.focus(); input.select(); }
 });
 $('#rescan')?.addEventListener('click', () => {
-  const target = $('#scanner') || $('#scanForm');
+  const target = $('#scan') || $('#scanner') || $('#scanForm');
   if (target) target.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
-  if (input) { input.focus(); input.select(); }
+  if (mainInput) { mainInput.focus(); mainInput.select(); }
+  else if (input) { input.focus(); input.select(); }
 });
 
 async function doScan(addr) {
@@ -1600,25 +1614,36 @@ async function handleMainScan() {
   if (!mainInput) return;
   const val = mainInput.value.trim();
   if (!val) { mainInput.focus(); return; }
+  const mainHint = $('#mainHint') || $('#hint');
+  if (/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(val)) {
+    if (mainHint) mainHint.innerHTML = '';
+    showError('solana', val);
+    return;
+  }
   if (!/^0x[a-fA-F0-9]{40}$/.test(val)) {
-    if (mainResult) {
-      mainResult.innerHTML = `<div class="rep-error">Please enter a valid Robinhood Chain contract address (0x followed by 40 hex characters).</div>`;
-      mainResult.classList.add('active');
+    if (mainHint) {
+      mainHint.innerHTML = `<span class="err" role="alert">That isn't a valid address. It should be 0x followed by 40 characters.</span>`;
     }
     mainInput.focus();
     return;
   }
+  if (mainHint) mainHint.innerHTML = '';
 
-  // Forward to the full Scanner Console so user sees the full report card
+  // Sync to scanner input
   const scannerInput = $('#addr');
-  const scannerSection = $('#scanner');
   if (scannerInput) {
     scannerInput.value = val;
-    if (scannerSection) {
-      scannerSection.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
-    }
-    // Small delay so scroll completes before scan starts rendering
-    setTimeout(() => doScan(val.toLowerCase()), scannerSection ? 350 : 0);
+  }
+
+  // Trigger scan immediately so scanning pipeline becomes visible below
+  doScan(val.toLowerCase());
+
+  // Smoothly scroll down to scanner below the input box
+  const scannerWrap = $('#scannerWrap') || $('#scanner');
+  if (scannerWrap) {
+    setTimeout(() => {
+      scannerWrap.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+    }, 80);
   }
 }
 
@@ -1666,12 +1691,8 @@ if ($('#heroSpecimen')) {
   const urlParams = new URLSearchParams(window.location.search);
   const ca = urlParams.get('ca') || urlParams.get('address') || (window.location.hash && /^#0x[a-fA-F0-9]{40}$/i.test(window.location.hash) ? window.location.hash.slice(1) : null);
   if (ca && /^0x[a-fA-F0-9]{40}$/i.test(ca)) {
-    if (input && form) {
-      input.value = ca;
-      setTimeout(() => doScan(ca.toLowerCase()), 150);
-    } else if (heroInput) {
-      heroInput.value = ca;
-      setTimeout(() => handleHeroScan(), 150);
-    }
+    if (mainInput) mainInput.value = ca;
+    if (input) input.value = ca;
+    setTimeout(() => doScan(ca.toLowerCase()), 150);
   }
 })();
