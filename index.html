@@ -292,13 +292,14 @@ body[data-state="error"] [data-view="error"]{ display:block; }
 .summary{ margin-top:24px; font-size:20px; line-height:1.45; max-width:46ch; }
 .summary strong{ font-weight:700; background: linear-gradient(transparent 62%, var(--lime) 62%); }
 .score-top{ display:flex; align-items:center; justify-content:space-between; gap:12px; font-size:13px; color: var(--gray-text); }
-.score-big{ margin-top:18px; font-size: clamp(96px, 11vw, 140px); font-stretch:120%; font-weight:850; letter-spacing:-0.05em; line-height:.8; }
+.score-big{ margin-top:18px; font-size: clamp(96px, 11vw, 140px); font-stretch:120%; font-weight:850; letter-spacing:-0.05em; line-height:.8; position:relative; display:inline-block; }
+.score-big::before{ content:''; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:150px; height:150px; border-radius:50%; background:radial-gradient(circle, rgba(204,255,0,0.15) 0%, transparent 70%); pointer-events:none; }
 .score-big small{ font-size:20px; font-weight:600; letter-spacing:0; color: var(--gray-text); }
 .meter{ position:relative; }
 .zones{ display:grid; grid-template-columns: 30fr 30fr 40fr; gap:4px; height:14px; }
 .zones span{ border-radius:4px; background: var(--gray-card); }
 .zones span.on-high{ background: var(--danger); }
-.needle{ position:absolute; top:-7px; width:4px; height:28px; border-radius:2px; background: var(--white); box-shadow: 0 0 0 2px var(--ink); transform: translateX(-2px); transition: left 1s var(--ease); }
+.needle{ position:absolute; top:-7px; width:4px; height:28px; border-radius:2px; background: var(--white); box-shadow: 0 0 12px rgba(255,255,255,0.95), 0 0 0 2px var(--ink); transform: translateX(-2px); transition: left 1s var(--ease); }
 .zone-labels{ display:grid; grid-template-columns: 30fr 30fr 40fr; gap:4px; margin-top:10px; font-size:12px; color: var(--gray-text); }
 .coverage{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding-top:18px; border-top:1px solid var(--gray-card); font-size:13px; color: var(--gray-text); }
 .coverage .dots{ display:flex; gap:5px; }
@@ -351,13 +352,13 @@ body[data-state="error"] [data-view="error"]{ display:block; }
 .stats b{ font-size:22px; font-stretch:112%; font-weight:800; letter-spacing:-0.02em; }
 .flow{ margin-top:18px; }
 .flow-bar{ display:flex; height:32px; border-radius:8px; overflow:hidden; border:1.5px solid var(--ink); }
-.flow-bar .buy{ background: var(--lime); display:flex; align-items:center; padding-left:10px; font-size:13px; font-weight:700; }
-.flow-bar .sell{ background: var(--ink); color: var(--white); display:flex; align-items:center; justify-content:flex-end; padding-right:10px; font-size:13px; font-weight:700; }
+.flow-bar .buy{ background: var(--lime); display:flex; align-items:center; padding-left:10px; font-size:13px; font-weight:700; transform-origin:left; animation:barSegmentGrow 0.8s var(--motion-spring) both; }
+.flow-bar .sell{ background: var(--ink); color: var(--white); display:flex; align-items:center; justify-content:flex-end; padding-right:10px; font-size:13px; font-weight:700; transform-origin:left; animation:barSegmentGrow 0.8s var(--motion-spring) both; }
 .flow small{ display:block; margin-top:8px; font-size:13.5px; color: var(--muted); }
 
 /* HOLDERS */
 .stack{ display:flex; height:42px; border-radius:10px; overflow:hidden; border:1.5px solid var(--ink); }
-.stack span{ height:100%; }
+.stack span{ height:100%; transform-origin:left; animation:barSegmentGrow 0.8s var(--motion-spring) both; }
 .stack span + span{ border-left:1.5px solid var(--ink); }
 .legend{ margin-top:14px; display:grid; grid-template-columns: 1fr 1fr; gap:8px 22px; }
 @media (max-width:560px){ .legend{ grid-template-columns:1fr; } }
@@ -850,6 +851,9 @@ body[data-state="result"] .rise.d2{ animation-delay:.12s; }
 #rescan{ background: var(--lime); color: var(--ink); font-weight:700; }
 #rescan:hover{ transform: translate(-2px,-2px); box-shadow: 2px 2px 0 var(--white); background: #d4ff1a; }
 #heroScanBtn{ padding: 16px 42px; min-width: 210px; font-size: 16px; font-weight: 750; }
+#mainScanBtn{ padding: 16px 32px; min-width: 155px; font-weight: 800; font-size: 15.5px; letter-spacing: -0.01em; transition: transform 0.25s var(--motion-spring), box-shadow 0.25s var(--motion-spring), background-color 0.2s ease; }
+#mainScanBtn:hover{ transform: translateY(-2px) scale(1.02); box-shadow: 0 8px 24px rgba(204, 255, 0, 0.45), 0 0 0 1.5px var(--ink); }
+#mainScanBtn:active{ transform: translateY(1px) scale(0.97) !important; }
 
 /* ===== SCAN BEFORE YOU BUY SECTION ===== */
 .scan-box{ display:grid; grid-template-columns: .85fr 1.15fr; gap:48px; align-items:start; }
@@ -1146,7 +1150,7 @@ body[data-state="result"] #mainEmptyHint{ display:none; }
           <svg aria-hidden="true"><use href="#lens"/></svg>
           <input type="text" class="input" id="mainInput" placeholder="Paste token contract address (0x…)" autocomplete="off" spellcheck="false">
         </div>
-        <button class="btn btn-lime" id="mainScanBtn" type="button">Run full scan</button>
+        <button class="btn btn-lime" id="mainScanBtn" type="button">Analyze CA</button>
       </div>
       <div class="field-hint" id="mainHint" style="margin-top:8px;"></div>
       <div class="empty-hint" id="mainEmptyHint">
@@ -1447,6 +1451,6 @@ body[data-state="result"] #mainEmptyHint{ display:none; }
   </div>
 </footer>
 
-<script src="/app.js?v=1.3.0" defer></script>
+<script src="/app.js?v=1.4.0" defer></script>
 </body>
 </html>

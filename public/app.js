@@ -90,7 +90,7 @@ function setState(state) {
   const mainBtn = $('#mainScanBtn');
   if (mainBtn) {
     mainBtn.disabled = state === 'scanning';
-    mainBtn.textContent = state === 'scanning' ? 'Scanning…' : 'Run full scan';
+    mainBtn.textContent = state === 'scanning' ? 'Analyzing CA…' : 'Analyze CA';
   }
   if (state === 'error') {
     const el = $('#scannerWrap') || $('#scanner');
