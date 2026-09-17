@@ -84,7 +84,7 @@ button.chip:hover{ border-color: var(--ink); }
 .nav-links a:hover{ color: var(--ink); }
 .nav-right{ display:flex; align-items:center; gap:14px; }
 .net{ display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; color: var(--fg); }
-.net .pulse{ width:8px; height:8px; border-radius:50%; background:#1a9e4b; box-shadow: 0 0 0 3px rgba(26,158,75,.18); }
+.net .pulse{ width:8px; height:8px; border-radius:50%; background: var(--lime); border: 1px solid var(--ink); box-shadow: 0 0 0 2px rgba(204,255,0,.3); flex-shrink:0; }
 .burger{ display:none; background:none; border:1.5px solid var(--line); border-radius: var(--r-sm); width:42px; height:42px; align-items:center; justify-content:center; cursor:pointer; }
 .mobile-nav{ display:none; border-top:1px solid var(--line); background: var(--white); }
 .mobile-nav a{ display:block; padding:14px var(--pad); font-size:17px; font-weight:600; border-bottom:1px solid var(--line); }
@@ -837,9 +837,9 @@ body[data-state="error"] [data-view="error"]{ display:block; }
 }
 
 @keyframes pulsePing {
-  0% { box-shadow: 0 0 0 0 rgba(26, 158, 75, 0.7); }
-  70% { box-shadow: 0 0 0 10px rgba(26, 158, 75, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(26, 158, 75, 0); }
+  0% { box-shadow: 0 0 0 0 rgba(204, 255, 0, 0.85); }
+  70% { box-shadow: 0 0 0 9px rgba(204, 255, 0, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(204, 255, 0, 0); }
 }
 
 @keyframes floatSpecimen {
