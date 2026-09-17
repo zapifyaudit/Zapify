@@ -1324,10 +1324,10 @@ function buildXSearchLinks(container, symbol, addr) {
   const links = [];
   if (symbol && /^[A-Za-z]/.test(symbol)) {
     const q = encodeURIComponent('$' + symbol.toUpperCase());
-    links.push(`<a href="${safe('https://x.com/search?q=' + q + '&src=typed_query&f=live') || '#'}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm">𝕏: $${esc(symbol)} ↗</a>`);
+    links.push(`<a href="${safe('https://x.com/search?q=' + q + '&src=typed_query&f=live') || '#'}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm">𝕏: $${esc(symbol)}</a>`);
   }
   const q2 = encodeURIComponent(addr);
-  links.push(`<a href="${safe('https://x.com/search?q=' + q2 + '&src=typed_query&f=live') || '#'}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm">𝕏: contract address ↗</a>`);
+  links.push(`<a href="${safe('https://x.com/search?q=' + q2 + '&src=typed_query&f=live') || '#'}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm">𝕏: contract address</a>`);
   container.innerHTML = `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">${links.join('')}</div>`;
 }
 
