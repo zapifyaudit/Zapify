@@ -34,10 +34,11 @@ const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-function animateNumber(el, start, end, duration = 900) {
+function animateNumber(el, start, end, duration = 900, onComplete = null) {
   if (!el) return;
   if (reduce || start === end) {
     el.textContent = end;
+    if (onComplete) onComplete();
     return;
   }
   const startTime = performance.now();
@@ -51,6 +52,7 @@ function animateNumber(el, start, end, duration = 900) {
       requestAnimationFrame(tick);
     } else {
       el.textContent = end;
+      if (onComplete) onComplete();
     }
   }
   requestAnimationFrame(tick);
@@ -962,7 +964,14 @@ function renderResult(data) {
     svEl.className = 'verdict ' + (sv >= 60 ? 'high' : sv >= 30 ? 'medium' : 'low');
   }
   const scoreEl = $('#scoreValue');
-  if (scoreEl) animateNumber(scoreEl, 0, sv, 1000);
+  if (scoreEl) {
+    animateNumber(scoreEl, 0, sv, 1000, () => {
+      scoreEl.classList.remove('punch');
+      void scoreEl.offsetWidth;
+      scoreEl.classList.add('punch');
+      setTimeout(() => scoreEl.classList.remove('punch'), 600);
+    });
+  }
   const zoneHigh = $('#zoneHigh'); if (zoneHigh) zoneHigh.className = sv >= 60 ? 'on-high' : '';
 
   const needle = $('#needle');
@@ -970,7 +979,7 @@ function renderResult(data) {
     needle.style.transition = 'none';
     needle.style.left = '0%';
     requestAnimationFrame(() => requestAnimationFrame(() => {
-      needle.style.transition = 'left 1.2s cubic-bezier(0.16, 1, 0.3, 1)';
+      needle.style.transition = 'left 1.4s cubic-bezier(0.34, 1.35, 0.64, 1)';
       needle.style.left = sv + '%';
     }));
   }
@@ -1299,6 +1308,11 @@ function drawFundingGraph(f) {
     el('text', { x: 30, y: ind.y - 32, 'font-size': 13.5, 'font-weight': 800, fill: INK }, 'Independent Wallets');
     el('text', { x: 30, y: ind.y - 14, 'font-size': 12, fill: MUTED }, 'Organic decentralized distribution');
   }
+
+  // Trigger continuous animated streaming on curves after initial draw
+  setTimeout(() => {
+    svg.querySelectorAll('.motion-path').forEach(p => p.classList.add('streaming-flow'));
+  }, 1300);
 }
 
 function buildSentiment(s, symbol, addr) {
@@ -1331,6 +1345,18 @@ function buildSentiment(s, symbol, addr) {
       return `<i class="${isSpike ? 'spike' : ''}" style="height:${h}px;animation-delay:${i * 22}ms;"></i>`;
     });
     hoursEl.innerHTML = bars.join('');
+
+    const allBars = hoursEl.querySelectorAll('i');
+    allBars.forEach((bar, idx) => {
+      bar.addEventListener('mouseenter', () => {
+        if (allBars[idx - 1]) allBars[idx - 1].style.transform = 'scaleY(1.15)';
+        if (allBars[idx + 1]) allBars[idx + 1].style.transform = 'scaleY(1.15)';
+      });
+      bar.addEventListener('mouseleave', () => {
+        if (allBars[idx - 1]) allBars[idx - 1].style.transform = '';
+        if (allBars[idx + 1]) allBars[idx + 1].style.transform = '';
+      });
+    });
   }
 
   if (xPosts && s.top?.length) {
