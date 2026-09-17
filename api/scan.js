@@ -325,7 +325,7 @@ function generateFindings(c, e, m, f, s, addr) {
   if (e && e.holders && c?.totalSupply) {
     const supply = BigInt(c.totalSupply);
     const holders = e.holders.filter(h => !DEAD.has(lc(h.address?.hash)));
-    const pairSet = market?.pairAddresses || new Set();
+    const pairSet = m?.pairAddresses || new Set();
     const nonPoolHolders = holders.filter(h => !pairSet.has(lc(h.address?.hash)));
 
     // FEW_HOLDERS (weight: 2)
