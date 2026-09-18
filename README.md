@@ -179,15 +179,16 @@ Client Web Application (Zapify Terminal)
 │   ├── favicon.ico             # Multi-resolution browser tab icon (16, 32, 48px)
 │   ├── favicon.png             # Modern 32x32 PNG favicon
 │   └── apple-touch-icon.png    # Mobile home screen bookmark icon (180x180)
-├── sql/                        # Relational Database Schemas
-│   └── schema.sql              # Supabase PostgreSQL schema for scans, findings & wallets
-├── tests/                      # Automated Unit & Integration Test Suite
-│   ├── scoring.test.js         # Formula curvature, weights & hard-gate assertions
-│   ├── sentiment.test.js       # Shill filter & keyword sentiment classification tests
-│   └── validation.test.js      # 5-scenario EVM address validator tests
+├── docs/                       # Project specifications & technical briefs
+│   ├── DEV-BRIEF.md            # Comprehensive architecture & risk specification
+│   └── report.md               # Security assessment & audit report
+├── src/                        # Master Brand Assets & Source Graphics
+│   ├── logo.png                # Master cyberpunk hexagon brand asset (1024x1024)
+│   ├── favicon.ico             # Master multi-resolution ICO icon
+│   ├── favicon.png             # Master 32x32 PNG icon
+│   └── apple-touch-icon.png    # Master 180x180 touch icon
 ├── index.html                  # Root landing & scanner application entry point
 ├── scan.html                   # Root standalone scanner entry point
-├── logo.png                    # High-res root brand asset
 ├── package.json                # Project dependencies, scripts & metadata
 ├── vercel.json                 # Serverless function execution limits & route rewrites
 └── README.md                   # Comprehensive project documentation
