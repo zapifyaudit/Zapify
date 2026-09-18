@@ -82,9 +82,12 @@ button.chip:hover{ border-color: var(--ink); }
 .logo:hover .logo-icon, .logo:hover svg{ transform:scale(1.08) rotate(-3deg); }
 .nav-links{ display:flex; gap:28px; font-size:15px; font-weight:600; color: var(--muted); }
 .nav-links a:hover{ color: var(--ink); }
-.nav-right{ display:flex; align-items:center; gap:14px; }
+.nav-right{ display:flex; align-items:center; gap:12px; }
 .net{ display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; color: var(--fg); }
 .net .pulse{ width:8px; height:8px; border-radius:50%; background: var(--lime); border: 1px solid var(--ink); box-shadow: 0 0 0 2px rgba(204,255,0,.3); flex-shrink:0; }
+.nav-x-link{ display:inline-flex; align-items:center; justify-content:center; width:38px; height:38px; border-radius:var(--r-sm); background:var(--white); border:1.5px solid var(--line); color:var(--ink); transition:transform .18s var(--motion-spring), background .18s, border-color .18s, color .18s, box-shadow .18s; flex-shrink:0; text-decoration:none; }
+.nav-x-link:hover{ background:var(--ink); color:var(--lime); border-color:var(--ink); transform:translateY(-2px); box-shadow:2px 2px 0 var(--lime); }
+.nav-x-link svg{ width:15px; height:15px; display:block; }
 .burger{ display:none; background:none; border:1.5px solid var(--line); border-radius: var(--r-sm); width:42px; height:42px; align-items:center; justify-content:center; cursor:pointer; }
 .mobile-nav{ display:none; border-top:1px solid var(--line); background: var(--white); }
 .mobile-nav a{ display:block; padding:14px var(--pad); font-size:17px; font-weight:600; border-bottom:1px solid var(--line); }
@@ -1514,6 +1517,11 @@ body[data-state="result"] #mainEmptyHint{ display:none; }
     </div>
     <div class="nav-right">
       <span class="net"><span class="pulse" aria-hidden="true"></span>Robinhood Chain, 4663</span>
+      <a href="https://x.com/zapifyaudit" target="_blank" rel="noopener noreferrer" class="nav-x-link" aria-label="Follow Zapify on X (Twitter)" title="Follow @zapifyaudit on X">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+        </svg>
+      </a>
       <a href="#scan" class="btn btn-lime btn-sm">Analyze contract</a>
       <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileNav">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h18M3 12h18M3 17h18"/></svg>
@@ -1525,6 +1533,10 @@ body[data-state="result"] #mainEmptyHint{ display:none; }
     <a href="#checks">What we check</a>
     <a href="#how">How scoring works</a>
     <a href="#faq">FAQ</a>
+    <a href="https://x.com/zapifyaudit" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;gap:10px;">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+      Follow on 𝕏 (@zapifyaudit)
+    </a>
     <a href="#scan" style="color:var(--lime);background:var(--ink);font-weight:700">Analyze contract</a>
   </div>
 </nav>
@@ -1979,6 +1991,10 @@ body[data-state="result"] #mainEmptyHint{ display:none; }
         <a href="https://robinhoodchain.blockscout.com" target="_blank" rel="noopener noreferrer">Blockscout</a>
         <a href="https://dexscreener.com/robinhood" target="_blank" rel="noopener noreferrer">DexScreener</a>
         <a href="https://docs.robinhood.com/chain" target="_blank" rel="noopener noreferrer">Robinhood Chain docs</a>
+        <a href="https://x.com/zapifyaudit" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:6px;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+          𝕏 (@zapifyaudit)
+        </a>
       </div>
     </div>
     <div class="foot-bottom">

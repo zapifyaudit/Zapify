@@ -77,6 +77,9 @@ button.chip:hover{ border-color: var(--ink); }
 .nav-links a[aria-current]{ font-weight:700; box-shadow: inset 0 -3px 0 var(--lime); }
 .net{ display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; }
 .net .pulse{ width:8px; height:8px; border-radius:50%; background: var(--lime); border: 1px solid var(--ink); box-shadow: 0 0 0 2px rgba(204,255,0,.3); flex-shrink:0; animation: pulsePing 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+.nav-x-link{ display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; border-radius:var(--r-sm); background:var(--white); border:1.5px solid var(--line); color:var(--ink); transition:transform .18s var(--ease), background .18s, border-color .18s, color .18s, box-shadow .18s; flex-shrink:0; text-decoration:none; }
+.nav-x-link:hover{ background:var(--ink); color:var(--lime); border-color:var(--ink); transform:translateY(-2px); box-shadow:2px 2px 0 var(--lime); }
+.nav-x-link svg{ width:15px; height:15px; display:block; }
 @keyframes pulsePing {
   0% { box-shadow: 0 0 0 0 rgba(204, 255, 0, 0.85); }
   70% { box-shadow: 0 0 0 9px rgba(204, 255, 0, 0); }
@@ -383,7 +386,14 @@ footer .wrap{ display:flex; justify-content:space-between; gap:12px; flex-wrap:w
       <a href="index.html#how">How scoring works</a>
       <a href="index.html#faq">FAQ</a>
     </div>
-    <span class="net"><span class="pulse" aria-hidden="true"></span>Robinhood Chain, 4663</span>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <span class="net"><span class="pulse" aria-hidden="true"></span>Robinhood Chain, 4663</span>
+      <a href="https://x.com/zapifyaudit" target="_blank" rel="noopener noreferrer" class="nav-x-link" aria-label="Follow Zapify on X (Twitter)" title="Follow @zapifyaudit on X">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+        </svg>
+      </a>
+    </div>
   </div>
 </nav>
 

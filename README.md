@@ -18,6 +18,7 @@
 [![Rubric](https://img.shields.io/badge/Scoring-Asymptotic%20Formula%20·%20Hard%20Gates-E0A82E?style=flat-square&labelColor=0D0D0A)](#-the-zapify-risk-scoring-rubric)
 [![Tests](https://img.shields.io/badge/Tests-Passing%20(100%25)-38C172?style=flat-square&labelColor=0D0D0A)](#-test-suite)
 [![GitHub](https://img.shields.io/badge/GitHub-zapifyaudit%2FZapify-181717?style=flat-square&logo=github&logoColor=white)](https://github.com/zapifyaudit/Zapify)
+[![X (Twitter)](https://img.shields.io/badge/X-@zapifyaudit-000000?style=flat-square&logo=x&logoColor=white)](https://x.com/zapifyaudit)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=flat-square&labelColor=0D0D0A)](#-license)
 
 </div>
