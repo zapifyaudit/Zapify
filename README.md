@@ -6,7 +6,7 @@
 
 **Dual-Engine Token Security & Social Sentiment Intelligence on Robinhood Chain**
 
-🌐 **Live Application:** [https://zapify-beta.vercel.app](https://zapify-beta.vercel.app)
+🌐 **Live Application:** [https://zapify-beta.vercel.app](https://www.zapifyaudit.tech/)
 
 *Read the contract. Read the room. Audit the bytecode. Award the verdict.*
 
