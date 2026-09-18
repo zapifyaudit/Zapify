@@ -71,11 +71,11 @@ Where:
 * $\sum \text{weight}$ is the aggregate sum of penalty weights triggered by active risk findings.
 * The divisor constant ($14$) ensures a balanced, mathematically sound curvature: minor issues accumulate moderately, while multiple red flags trigger exponential escalation.
 
-### ⛔ Hard-Gate Gating Mechanism
+### ⛔ Hard-Gate Safety Mechanism
 
-Critical high-danger traps bypass normal weight accumulation and **force a minimum risk score of 80**:
+Critical high-danger traps bypass normal weight accumulation and **force an immediate minimum risk score of 80 (High Risk)**:
 
-$$\text{If any finding is flagged with ⛔ Hard Gate} \implies \text{Score} = \max(\text{calculated\_score}, 80)$$
+> **Security Rule:** If any critical finding is flagged with a **Hard Gate (⛔)** $\implies$ **Risk Score $\ge 80$** (Immediate High Risk Warning).
 
 Hard-gate conditions include:
 - `UNVERIFIED_CONTRACT` (Source code not published on Blockscout)
@@ -130,23 +130,17 @@ The application at [zapify-beta.vercel.app](https://zapify-beta.vercel.app) is e
 ## 🏗️ Architecture & Telemetry Pipeline
 
 ```
-Browser Client (index.html / public/app.js)
+Client Web Application (Zapify Terminal)
   │
-  ├─► POST /api/scan { address: "0x..." }
-  │     │
-  │     ├── [Parallel Dispatch]
-  │     │     ├─► lib/contract.js     ──► Robinhood Chain RPC (eth_call, bytecode)
-  │     │     ├─► lib/blockscout.js    ──► Blockscout API v2 (verification, holders)
-  │     │     ├─► lib/dexscreener.js   ──► DexScreener API (pairs, liquidity, volume)
-  │     │     ├─► lib/funding.js       ──► Blockscout Transfer Graph (Sybil clusters)
-  │     │     └─► lib/sentiment.js     ──► 𝕏 API Proxy (posts, shill ratio)
-  │     │
-  │     ├── lib/scoring.js             ──► Asymptotic formula + Hard-gate evaluation
-  │     └── Return JSON Payload        ──► Complete unified scan report
+  ├─► Parallel Telemetry Dispatch
+  │     ├─► Contract Bytecode Engine  ──► Robinhood Chain RPC (eth_call, bytecode heuristics)
+  │     ├─► Explorer Verifier Engine  ──► Blockscout API v2 (source verification, holders)
+  │     ├─► Market & Liquidity Engine ──► DexScreener API (pairs, liquidity, volume)
+  │     ├─► Transfer Graph Engine     ──► Blockscout Internal Graph (Sybil clusters)
+  │     └─► Social Sentiment Engine   ──► 𝕏 Intelligence Proxy (posts, shill ratio)
   │
-  ├─► GET /api/sentiment?q=$TICKER     ──► 𝕏 API v2 Search Proxy
-  ├─► GET /api/history?wallet=0x...    ──► Supabase Scan History
-  └─► POST /api/wallet/verify          ──► SIWE MetaMask Wallet Authentication
+  ├─► Risk Scoring Aggregator         ──► Asymptotic formula + Hard-gate safety evaluation
+  └─► Unified Security Dossier        ──► Complete verified audit report with verdict
 ```
 
 *Fault-tolerant design: If one telemetry source experiences latency or rate limiting, the engine gracefully degrades that module's coverage without blocking the remaining audit vectors.*
@@ -275,63 +269,6 @@ Browser Client (index.html / public/app.js)
    npx serve .
    ```
    Open `http://localhost:3000` in your browser.
-
----
-
-## 📡 API Endpoints
-
-Zapify exposes clean, headless serverless endpoints for programmatic risk analysis:
-
-### 1. Execute Contract Risk Scan
-```http
-POST /api/scan
-Content-Type: application/json
-
-{
-  "address": "0x0000000000000000000000000000000000000000"
-}
-```
-**Sample Response:**
-```json
-{
-  "address": "0x...",
-  "score": 14,
-  "verdict": "Low risk",
-  "hardGate": false,
-  "coverage": "5/5",
-  "token": {
-    "name": "Standard Token",
-    "symbol": "STD",
-    "decimals": 18,
-    "totalSupply": "1000000000000000000000000"
-  },
-  "findings": [
-    {
-      "code": "OWNER_RENOUNCED",
-      "severity": "pass",
-      "title": "Ownership renounced",
-      "detail": "Contract owner is set to zero address."
-    }
-  ],
-  "breakdown": {
-    "contract": 0,
-    "liquidity": 5,
-    "holders": 0,
-    "network": 0,
-    "sentiment": 0
-  }
-}
-```
-
-### 2. Live Social Sentiment
-```http
-GET /api/sentiment?q=$STD
-```
-
-### 3. Scan History
-```http
-GET /api/history?wallet=0x...
-```
 
 ---
 
