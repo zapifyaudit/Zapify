@@ -6,11 +6,11 @@
 
 **Dual-Engine Token Security & Social Sentiment Intelligence on Robinhood Chain**
 
-🌐 **Live Application:** [https://www.zapifyaudit.tech/](https://www.zapifyaudit.tech/)
+🌐 **Live Application:** [https://www.zapifyaudit.tech](https://www.zapifyaudit.tech)
 
 *Read the contract. Read the room. Audit the bytecode. Award the verdict.*
 
-[![Live Site](https://img.shields.io/badge/Website-zapify--beta.vercel.app-CCFF00?style=flat-square&logo=googlechrome&logoColor=0D0D0A&labelColor=0D0D0A)](https://zapify-beta.vercel.app)
+[![Live Site](https://img.shields.io/badge/Website-zapifyaudit.tech-CCFF00?style=flat-square&logo=googlechrome&logoColor=0D0D0A&labelColor=0D0D0A)](https://www.zapifyaudit.tech)
 [![Network](https://img.shields.io/badge/Network-Robinhood%20Chain%20·%204663-1A9E4B?style=flat-square&labelColor=0D0D0A)](#-architecture--telemetry-pipeline)
 [![Standard](https://img.shields.io/badge/Standard-ERC--20%20·%20Bytecode%20Heuristics-38C172?style=flat-square&labelColor=0D0D0A)](#-what-we-check-the-5-audit-vectors)
 [![Runtime](https://img.shields.io/badge/Runtime-Node.js%20·%20Vercel%20Serverless%20·%20Ethers.js%20v6-E9E4D6?style=flat-square&labelColor=0D0D0A)](#-tech-stack)
@@ -24,7 +24,7 @@
 
 ---
 
-**Zapify** ([zapify-beta.vercel.app](https://zapify-beta.vercel.app)) is an institutional-grade token risk scanner, bytecode security auditor, and real-time social room sentiment intelligence engine built specifically for tokens launched on the **Robinhood Chain** mainnet (Chain ID `4663`).
+**Zapify** ([zapifyaudit.tech](https://www.zapifyaudit.tech)) is an institutional-grade token risk scanner, bytecode security auditor, and real-time social room sentiment intelligence engine built specifically for tokens launched on the **Robinhood Chain** mainnet (Chain ID `4663`).
 
 **Read the contract. Read the room.** Zapify addresses the dual nature of crypto traps: code-level honeypots and social-level coordinated manipulation. By evaluating deterministic on-chain contract bytecode in parallel with live off-chain social sentiment on 𝕏, Zapify provides traders, capital allocators, and researchers with an objective second opinion within seconds.
 
@@ -96,7 +96,7 @@ Score: 60 – 100  ──►  🔴  HIGH RISK   (Bytecode traps, honeypot risk, 
 
 ## 🖥️ Application Features & Architecture
 
-The application at [zapify-beta.vercel.app](https://zapify-beta.vercel.app) is engineered as a zero-latency, high-performance single-page web terminal:
+The application at [zapifyaudit.tech](https://www.zapifyaudit.tech) is engineered as a zero-latency, high-performance single-page web terminal:
 
 1. **Cyberpunk Command Center (`#scan`):**
    - Instant single-line contract input with checksum validation and quick-paste button.
@@ -279,7 +279,7 @@ Token developers and communities can display their real-time Zapify security ver
 
 ```markdown
 <!-- Replace with your token's contract address -->
-[![Zapify Security Audit](https://img.shields.io/badge/Zapify-Verified%20Clean-CCFF00?style=flat-square&logo=shield&labelColor=0D0D0A)](https://zapify-beta.vercel.app/#0xYOUR_CONTRACT_ADDRESS)
+[![Zapify Security Audit](https://img.shields.io/badge/Zapify-Verified%20Clean-CCFF00?style=flat-square&logo=shield&labelColor=0D0D0A)](https://www.zapifyaudit.tech/#0xYOUR_CONTRACT_ADDRESS)
 ```
 
 ---
